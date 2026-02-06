@@ -1,6 +1,6 @@
 public class Scheme {
-    String nom;
-    String pattern;
+    String nom;       // Nom du schème (en arabe)
+    String pattern;   // Pattern arabe avec placeholders _1 _2 _3
 
     public Scheme(String nom, String pattern) {
         this.nom = nom;
@@ -12,7 +12,6 @@ public class Scheme {
             return null;
 
         String result = pattern;
-        // استبدال الحروف الثلاثة فقط
         result = result.replace("_1", String.valueOf(racine.charAt(0)));
         result = result.replace("_2", String.valueOf(racine.charAt(1)));
         result = result.replace("_3", String.valueOf(racine.charAt(2)));

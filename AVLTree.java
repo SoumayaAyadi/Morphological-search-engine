@@ -1,9 +1,8 @@
+import java.util.ArrayList;
+import java.util.List;
+
 public class AVLTree {
     private Node root;
-
-    public AVLTree() {
-        root = null;
-    }
 
     private int height(Node n) {
         return (n == null) ? 0 : n.height;
@@ -102,6 +101,21 @@ public class AVLTree {
             inOrder(node.gauche);
             node.afficher();
             inOrder(node.droite);
+        }
+    }
+
+    // ================= Méthodes pour l'analyse inversée =================
+    public List<Node> getAllNodes() {
+        List<Node> nodes = new ArrayList<>();
+        inOrderCollect(root, nodes);
+        return nodes;
+    }
+
+    private void inOrderCollect(Node node, List<Node> nodes) {
+        if (node != null) {
+            inOrderCollect(node.gauche, nodes);
+            nodes.add(node);
+            inOrderCollect(node.droite, nodes);
         }
     }
 }

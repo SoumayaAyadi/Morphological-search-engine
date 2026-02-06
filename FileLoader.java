@@ -16,12 +16,12 @@ public class FileLoader {
                     count++;
                 }
             }
-            System.out.println("âœ… ØªÙ… ØªØ­Ù…ÙŠÙ„ " + count + " Ø¬Ø°Ø± Ù…Ù† Ø§Ù„Ù…Ù„Ù: " + filename);
+            System.out.println("✅ Chargé " + count + " racines depuis le fichier : " + filename);
             
         } catch (FileNotFoundException e) {
-            System.out.println("âŒ Ø§Ù„Ù…Ù„Ù ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯: " + filename);
+            System.out.println("❌ Fichier non trouvé : " + filename);
         } catch (IOException e) {
-            System.out.println("âŒ Ø®Ø·Ø£ ÙÙŠ Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„Ù…Ù„Ù: " + e.getMessage());
+            System.out.println("❌ Erreur lecture fichier : " + e.getMessage());
         }
     }
 }
