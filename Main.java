@@ -10,18 +10,17 @@ public class Main {
         boolean run = true;
         while (run) {
             System.out.println("\n1. Ajouter racine");
-System.out.println("2. Générer mot");
-System.out.println("3. Afficher tout");
-System.out.println("4. Afficher schèmes");
-System.out.println("5. Modifier un schème");
-System.out.println("6. Supprimer un schème");
-System.out.println("7. Valider un mot");
-System.out.println("8. Analyser un mot");
-System.out.println("9. Ajouter un nouveau schème"); // ← Ajouté
-System.out.println("10. Afficher les dérivés d'une racine");
-System.out.println("0. Quitter");
-System.out.print("Choix : ");
-
+            System.out.println("2. Générer mot");
+            System.out.println("3. Afficher tout");
+            System.out.println("4. Afficher schèmes");
+            System.out.println("5. Modifier un schème");
+            System.out.println("6. Supprimer un schème");
+            System.out.println("7. Valider un mot");
+            System.out.println("8. Analyser un mot");
+            System.out.println("9. Ajouter un nouveau schème");
+            System.out.println("10. Afficher les dérivés d'une racine");
+            System.out.println("0. Quitter");
+            System.out.print("Choix : ");
 
             String c = sc.nextLine();
 
@@ -44,7 +43,7 @@ System.out.print("Choix : ");
                     }
                     System.out.println("Liste des racines disponibles:");
                     for (int i = 0; i < racines.size(); i++) {
-                        System.out.println((i + 1) + ") " + racines.get(i));
+                        System.out.println((i + 1) + ") " + RTLFormatter.rtl(racines.get(i)));
                     }
                     System.out.print("Choix racine (numéro) : ");
                     int choixRacine = Integer.parseInt(sc.nextLine());
@@ -54,7 +53,7 @@ System.out.print("Choix : ");
                     List<String> schemes = engine.getAllSchemes();
                     System.out.println("Liste des schèmes disponibles:");
                     for (int i = 0; i < schemes.size(); i++) {
-                        System.out.println((i + 1) + ") " + schemes.get(i));
+                        System.out.println((i + 1) + ") " + RTLFormatter.rtl(schemes.get(i)));
                     }
                     System.out.print("Choix schème (numéro) : ");
                     int choixScheme = Integer.parseInt(sc.nextLine());
@@ -99,25 +98,25 @@ System.out.print("Choix : ");
                     String motAnalyse = sc.nextLine();
                     engine.analyserMot(motAnalyse);
                     break;
-             case "9":
-    System.out.print("Nom du nouveau schème : ");
-    String nom = sc.nextLine();
+                    
+                case "9":
+                    System.out.print("Nom du nouveau schème : ");
+                    String nom = sc.nextLine();
 
-    System.out.print("Type (NORMAL / NAQIS / MAZID) : ");
-    String type = sc.nextLine();
+                    System.out.print("Type (NORMAL / NAQIS / MAZID) : ");
+                    String type = sc.nextLine();
 
-    // Exemple de règle par défaut (tu peux personnaliser la fonction)
-    Scheme.Transformation rule = (c1, c2, c3) -> c1 + c2 + c3;
+                    // Exemple de règle par défaut (tu peux personnaliser la fonction)
+                    Scheme.Transformation rule = (c1, c2, c3) -> c1 + c2 + c3;
 
-    engine.ajouterScheme(nom, type, rule);
-    break;
+                    engine.ajouterScheme(nom, type, rule);
+                    break;
 
-case "10":
-    System.out.print("Racine pour afficher ses dérivés : ");
-    String rDerives = sc.nextLine();
-    engine.afficherDerivesRacine(rDerives);
-    break;
-
+                case "10":
+                    System.out.print("Racine pour afficher ses dérivés : ");
+                    String rDerives = sc.nextLine();
+                    engine.afficherDerivesRacine(rDerives);
+                    break;
 
                 case "0":
                     run = false;
@@ -128,6 +127,6 @@ case "10":
             }
         }
         sc.close();
-        System.out.println("Au revoir!");
+        System.out.println("=".repeat(30) + "   bye bye :)   " + "=".repeat(30));
     }
 }

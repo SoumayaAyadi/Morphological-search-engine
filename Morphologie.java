@@ -33,18 +33,18 @@ public class Morphologie {
                 (c1, c2, c3) -> c1 + "ا" + c2 + "ِ" + c3 + "ة"));
 
         // NE9SA : الفعل الناقص
-schemes.put("فعل_ناقص", new Scheme("فعل_ناقص", "NAQIS",
-    (c1, c2, c3) -> {
-        // Si 3ᵉ radical est و ou ي → on le transforme en ا
-        if (c3.equals("و") || c3.equals("ي")) return c1 + "َ" + c2 + "َا";
-        return c1 + "َ" + c2 + "َ" + c3;
-    }
-));
+        /*schemes.put("فعل_ناقص", new Scheme("فعل_ناقص", "NAQIS",
+            (c1, c2, c3) -> {
+                // Si 3ᵉ radical est و ou ي → on le transforme en ا
+                if (c3.equals("و") || c3.equals("ي")) return c1 + "َ" + c2 + "َا";
+                return c1 + "َ" + c2 + "َ" + c3;
+            }
+        ));*/
 
         // MAZID : radical répété
-schemes.put("فعّل", new Scheme("فعّل", "MAZID",
-    (c1, c2, c3) -> c1 + c2 + "ّ" + c2 + "َ" + c3 + "َ"
-));
+        schemes.put("فعّل", new Scheme("فعّل", "MAZID",
+            (c1, c2, c3) -> c1 + c2 + "ّ" + c3 + "َ"
+        ));
 
         // MAZID : افعل
         schemes.put("افعل", new Scheme("افعل", "MAZID",
@@ -56,7 +56,7 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
 
         // MAZID : تفعّل
         schemes.put("تفعّل", new Scheme("تفعّل", "MAZID",
-                (c1, c2, c3) -> "ت" + c1 + c2 + "ّ" + c2 + "َ" + c3 + "َ"));
+                (c1, c2, c3) -> "ت" + c1 + c2 + "ّ" + c3 + "َ"));
 
         // MAZID : استفعل
         schemes.put("استفعل", new Scheme("استفعل", "MAZID",
@@ -64,7 +64,7 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
 
         // MAZID : مفعّل
         schemes.put("مفعّل", new Scheme("مفعّل", "MAZID",
-                (c1, c2, c3) -> "م" + c1 + c2 + "ّ" + c2 + "َ" + c3 + "َ"));
+                (c1, c2, c3) -> "م" + c1 + c2 + "ّ" + c3 + "َ"));
 
         // MAZID : فعول
         schemes.put("فعول", new Scheme("فعول", "MAZID",
@@ -75,13 +75,13 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
     public void generer(String racine, String nomScheme) {
         Node node = arbre.rechercher(racine);
         if (node == null) {
-            System.out.println("❌ Racine non trouvée : " + racine);
+            System.out.println("❌ Racine non trouvée : " + RTLFormatter.rtl(racine));
             return;
         }
 
         Scheme s = schemes.get(nomScheme);
         if (s == null) {
-            System.out.println("❌ Schème introuvable : " + nomScheme);
+            System.out.println("❌ Schème introuvable : " + RTLFormatter.rtl(nomScheme));
             return;
         }
 
@@ -92,7 +92,7 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
         }
 
         // Affichage clair avec racine et schème
-        System.out.println("✅ Mot généré : '" + mot + "' | Racine : '" + racine + "' | Schème : '" + s.nom + "'");
+        System.out.println("✅ Mot généré : " + RTLFormatter.rtl(mot) + " | Racine : " + RTLFormatter.rtl(racine) + " | Schème : " + RTLFormatter.rtl(s.nom));
         node.ajouterDerive(mot);
     }
 
@@ -100,7 +100,7 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
     public void afficherSchemes() {
         System.out.println("\n=== SCHÈMES DISPONIBLES ===");
         for (Scheme s : schemes.values()) {
-            System.out.println("- " + s.nom + " | type = " + s.type);
+            System.out.println("- " + RTLFormatter.rtl(s.nom) + " | type = " + s.type);
         }
     }
 
@@ -111,9 +111,9 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
 
     public void supprimerScheme(String nom) {
         if (schemes.remove(nom) != null) {
-            System.out.println("✅ Schème supprimé : " + nom);
+            System.out.println("✅ Schème supprimé : " + RTLFormatter.rtl(nom));
         } else {
-            System.out.println("❌ Schème introuvable : " + nom);
+            System.out.println("❌ Schème introuvable : " + RTLFormatter.rtl(nom));
         }
     }
 
@@ -121,19 +121,19 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
     public void validerMot(String racine, String mot) {
         Node node = arbre.rechercher(racine);
         if (node == null) {
-            System.out.println("❌ Racine non trouvée : " + racine);
+            System.out.println("❌ Racine non trouvée : " + RTLFormatter.rtl(racine));
             return;
         }
 
         for (Scheme s : schemes.values()) {
             if (mot.equals(s.generate(racine))) {
-                System.out.println("✅ Le mot '" + mot + "' appartient morphologiquement à la racine '" + racine + "' | Schème : '" + s.nom + "'");
+                System.out.println("✅ Le mot " + RTLFormatter.rtl(mot) + " appartient morphologiquement à la racine " + RTLFormatter.rtl(racine) + " | Schème : " + RTLFormatter.rtl(s.nom));
                 node.ajouterDerive(mot);
                 return;
             }
         }
 
-        System.out.println("❌ Le mot '" + mot + "' n'appartient pas morphologiquement à la racine '" + racine + "'");
+        System.out.println("❌ Le mot " + RTLFormatter.rtl(mot) + " n'appartient pas morphologiquement à la racine " + RTLFormatter.rtl(racine));
     }
 
     // ================= Analyse inversée =================
@@ -142,14 +142,14 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
             for (Scheme s : schemes.values()) {
                 if (mot.equals(s.generate(node.racine))) {
                     System.out.println("✅ Analyse réussie :");
-                    System.out.println("   Mot    : '" + mot + "'");
-                    System.out.println("   Racine : '" + node.racine + "'");
-                    System.out.println("   Schème : '" + s.nom + "'");
+                    System.out.println("   Mot    : " + RTLFormatter.rtl(mot));
+                    System.out.println("   Racine : " + RTLFormatter.rtl(node.racine));
+                    System.out.println("   Schème : " + RTLFormatter.rtl(s.nom));
                     return;
                 }
             }
         }
-        System.out.println("❌ Mot inconnu : '" + mot + "'");
+        System.out.println("❌ Mot inconnu : " + RTLFormatter.rtl(mot));
     }
 
     // ================= Ajout d'un nouveau schème =================
@@ -159,26 +159,26 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
             return;
         }
         schemes.put(nom, new Scheme(nom, type, rule));
-        System.out.println("✅ Schème ajouté : " + nom);
+        System.out.println("✅ Schème ajouté : " + RTLFormatter.rtl(nom));
     }
-     // ================= Affichage des dérivés d'une racine =================//
+    
+    // ================= Affichage des dérivés d'une racine =================
     public void afficherDerivesRacine(String racine) {
-    Node node = arbre.rechercher(racine);
-    if (node == null) {
-        System.out.println("❌ Racine non trouvée : " + racine);
-        return;
-    }
+        Node node = arbre.rechercher(racine);
+        if (node == null) {
+            System.out.println("❌ Racine non trouvée : " + RTLFormatter.rtl(racine));
+            return;
+        }
 
-    System.out.println("=== Dérivés de la racine '" + racine + "' ===");
-    if (node.derives.isEmpty()) {
-        System.out.println("❌ Aucun mot dérivé pour cette racine");
-    } else {
-        for (String mot : node.derives) {
-            System.out.println("- " + mot);
+        System.out.println("=== Dérivés de la racine " + RTLFormatter.rtl(racine) + " ===");
+        if (node.derives.isEmpty()) {
+            System.out.println("❌ Aucun mot dérivé pour cette racine");
+        } else {
+            for (String mot : node.derives) {
+                System.out.println("- " + RTLFormatter.rtl(mot));
+            }
         }
     }
-}
-
 
     // ================= Getters pour menus =================
     public List<String> getAllRacines() {
@@ -192,6 +192,4 @@ schemes.put("فعّل", new Scheme("فعّل", "MAZID",
     public List<String> getAllSchemes() {
         return new ArrayList<>(schemes.keySet());
     }
-
-    
 }

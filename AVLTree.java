@@ -72,13 +72,13 @@ public class AVLTree {
     }
 
     public void addRacine(String racine) {
-    if (rechercher(racine) != null) {
-        System.out.println("⚠️ Racine déjà existante : " + racine);
-        return;
+        if (rechercher(racine) != null) {
+            System.out.println("⚠️ Racine déjà existante : " + RTLFormatter.rtl(racine));
+            return;
+        }
+        root = insert(root, racine);
+        System.out.println("✅ Racine ajoutée avec succès : " + RTLFormatter.rtl(racine));
     }
-    root = insert(root, racine);
-    System.out.println("✅ Racine ajoutée avec succès : " + racine);
-}
 
 
     public Node rechercher(String racine) {

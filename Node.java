@@ -18,7 +18,7 @@ public class Node {
         this.deriveSchemes = new ArrayList<>();
     }
 
-    // Ajouter mot seul (ancienne version)
+    // Ajouter mot seul 
     public void ajouterDerive(String mot) {
         if (!derives.contains(mot)) {
             derives.add(mot);
@@ -26,7 +26,7 @@ public class Node {
         }
     }
 
-    // Nouvelle version : mot + schème
+    // Ajouter mot + schème
     public void ajouterDerive(String mot, String scheme) {
         if (!derives.contains(mot)) {
             derives.add(mot);
@@ -36,13 +36,13 @@ public class Node {
 
     // Affichage amélioré
     public void afficher() {
-        System.out.println("Racine : " + racine);
+        System.out.println("Racine : " + RTLFormatter.rtl(racine));
         if (!derives.isEmpty()) {
             System.out.println("  Dérivés :");
             for (int i = 0; i < derives.size(); i++) {
                 String mot = derives.get(i);
                 String scheme = deriveSchemes.get(i);
-                System.out.println("    - " + mot + " | Schème : " + scheme);
+                System.out.println("    - " + RTLFormatter.rtl(mot) + " | Schème : " + RTLFormatter.rtl(scheme));
             }
         } else {
             System.out.println("  Aucun dérivé");

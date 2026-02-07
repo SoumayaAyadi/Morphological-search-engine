@@ -1,4 +1,3 @@
-// HashTable.java 
 import java.util.HashMap; 
  
 public class HashTable { 
@@ -22,4 +21,4 @@ public class HashTable {
             System.out.println(key + " -> " + schemes.get(key)); 
         } 
     } 
-} 
+}
