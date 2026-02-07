@@ -1,21 +1,32 @@
+// Scheme.java
 public class Scheme {
-    String nom;       // Nom du schème (en arabe)
-    String pattern;   // Pattern arabe avec placeholders _1 _2 _3
 
-    public Scheme(String nom, String pattern) {
+    String nom;    // nom du schème
+    String type;   // NORMAL / NAQIS / MAZID
+    Transformation rule; // fonction qui applique la règle
+
+    // Interface fonctionnelle pour appliquer la règle
+    public interface Transformation {
+        String apply(String c1, String c2, String c3);
+    }
+
+    public Scheme(String nom, String type, Transformation rule) {
         this.nom = nom;
-        this.pattern = pattern;
+        this.type = type;
+        this.rule = rule;
     }
 
     public String generate(String racine) {
-        if (racine == null || racine.length() != 3)
-            return null;
+        if (racine == null || racine.length() != 3) return null;
 
-        String result = pattern;
-        result = result.replace("_1", String.valueOf(racine.charAt(0)));
-        result = result.replace("_2", String.valueOf(racine.charAt(1)));
-        result = result.replace("_3", String.valueOf(racine.charAt(2)));
+        String c1 = "" + racine.charAt(0);
+        String c2 = "" + racine.charAt(1);
+        String c3 = "" + racine.charAt(2);
 
-        return result;
+        if (rule != null) {
+            return rule.apply(c1, c2, c3);
+        }
+
+        return null;
     }
 }

@@ -1,8 +1,11 @@
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Morphologie {
+
     public AVLTree arbre;
-    private HashMap<String, Scheme> schemes; // HashMap pour accès O(1)
+    private HashMap<String, Scheme> schemes; // Table de hachage des schèmes
 
     public Morphologie() {
         arbre = new AVLTree();
@@ -10,13 +13,65 @@ public class Morphologie {
         initSchemes();
     }
 
+    // ================= Initialisation des schèmes avec règles explicites =================
     private void initSchemes() {
-        schemes.put("فَعَلَ", new Scheme("فَعَلَ", "_1َ_2َ_3َ"));  // كتب -> كَتَبَ
-        schemes.put("مفعول", new Scheme("مفعول", "م_1_2و_3"));     // كتب -> مكتوب
-        schemes.put("فاعل", new Scheme("فاعل", "_1ا_2ِ_3"));       // كتب -> كاتب
+
+        // NORMAL : فَعَلَ
+        schemes.put("فَعَلَ", new Scheme("فَعَلَ", "NORMAL",
+                (c1, c2, c3) -> c1 + "َ" + c2 + "َ" + c3 + "َ"));
+
+        // NORMAL : فاعل
+        schemes.put("فاعل", new Scheme("فاعل", "NORMAL",
+                (c1, c2, c3) -> c1 + "ا" + c2 + "ِ" + c3));
+
+        // NORMAL : مفعول
+        schemes.put("مفعول", new Scheme("مفعول", "NORMAL",
+                (c1, c2, c3) -> "م" + c1 + c2 + "و" + c3));
+
+        // NORMAL : فاعلة
+        schemes.put("فاعلة", new Scheme("فاعلة", "NORMAL",
+                (c1, c2, c3) -> c1 + "ا" + c2 + "ِ" + c3 + "ة"));
+
+        // NE9SA : الفعل الناقص
+schemes.put("فعل_ناقص", new Scheme("فعل_ناقص", "NAQIS",
+    (c1, c2, c3) -> {
+        // Si 3ᵉ radical est و ou ي → on le transforme en ا
+        if (c3.equals("و") || c3.equals("ي")) return c1 + "َ" + c2 + "َا";
+        return c1 + "َ" + c2 + "َ" + c3;
+    }
+));
+
+        // MAZID : radical répété
+schemes.put("فعّل", new Scheme("فعّل", "MAZID",
+    (c1, c2, c3) -> c1 + c2 + "ّ" + c2 + "َ" + c3 + "َ"
+));
+
+        // MAZID : افعل
+        schemes.put("افعل", new Scheme("افعل", "MAZID",
+                (c1, c2, c3) -> "ا" + c1 + c2 + c3));
+
+        // MAZID : انفعل
+        schemes.put("انفعل", new Scheme("انفعل", "MAZID",
+                (c1, c2, c3) -> "ان" + c1 + c2 + c3));
+
+        // MAZID : تفعّل
+        schemes.put("تفعّل", new Scheme("تفعّل", "MAZID",
+                (c1, c2, c3) -> "ت" + c1 + c2 + "ّ" + c2 + "َ" + c3 + "َ"));
+
+        // MAZID : استفعل
+        schemes.put("استفعل", new Scheme("استفعل", "MAZID",
+                (c1, c2, c3) -> "است" + c1 + c2 + c3));
+
+        // MAZID : مفعّل
+        schemes.put("مفعّل", new Scheme("مفعّل", "MAZID",
+                (c1, c2, c3) -> "م" + c1 + c2 + "ّ" + c2 + "َ" + c3 + "َ"));
+
+        // MAZID : فعول
+        schemes.put("فعول", new Scheme("فعول", "MAZID",
+                (c1, c2, c3) -> "م" + c1 + c2 + "و" + c3));
     }
 
-    // Génération d’un mot à partir d’une racine et d’un schème
+    // ================= Génération =================
     public void generer(String racine, String nomScheme) {
         Node node = arbre.rechercher(racine);
         if (node == null) {
@@ -31,25 +86,27 @@ public class Morphologie {
         }
 
         String mot = s.generate(racine);
-        System.out.println("✅ Mot généré : " + mot);
+        if (mot == null) {
+            System.out.println("❌ Génération impossible");
+            return;
+        }
+
+        // Affichage clair avec racine et schème
+        System.out.println("✅ Mot généré : '" + mot + "' | Racine : '" + racine + "' | Schème : '" + s.nom + "'");
         node.ajouterDerive(mot);
     }
 
+    // ================= Affichage =================
     public void afficherSchemes() {
         System.out.println("\n=== SCHÈMES DISPONIBLES ===");
-        for (String key : schemes.keySet()) {
-            System.out.println("- " + key + " : " + schemes.get(key).pattern);
+        for (Scheme s : schemes.values()) {
+            System.out.println("- " + s.nom + " | type = " + s.type);
         }
     }
 
+    // ================= Modification / Suppression =================
     public void modifierScheme(String nom, String nouveauPattern) {
-        Scheme s = schemes.get(nom);
-        if (s != null) {
-            s.pattern = nouveauPattern;
-            System.out.println("✅ Schème modifié : " + nom);
-        } else {
-            System.out.println("❌ Schème introuvable : " + nom);
-        }
+        System.out.println("❌ Avec cette approche, modification pattern non autorisée directement !");
     }
 
     public void supprimerScheme(String nom) {
@@ -60,7 +117,7 @@ public class Morphologie {
         }
     }
 
-   // ================= Validation morphologique =================
+    // ================= Validation morphologique =================
     public void validerMot(String racine, String mot) {
         Node node = arbre.rechercher(racine);
         if (node == null) {
@@ -68,36 +125,73 @@ public class Morphologie {
             return;
         }
 
-        boolean valide = false;
-        String schPattern = "";
         for (Scheme s : schemes.values()) {
-            String test = s.generate(racine);
-            if (test.equals(mot)) {
-                valide = true;
-                schPattern = s.nom;
-                break;
+            if (mot.equals(s.generate(racine))) {
+                System.out.println("✅ Le mot '" + mot + "' appartient morphologiquement à la racine '" + racine + "' | Schème : '" + s.nom + "'");
+                node.ajouterDerive(mot);
+                return;
             }
         }
 
-        if (valide) {
-            System.out.println("✅ Mot valide pour la racine " + racine + ", schème : " + schPattern);
-            node.ajouterDerive(mot);
-        } else {
-            System.out.println("❌ Mot NON valide pour la racine " + racine);
-        }
+        System.out.println("❌ Le mot '" + mot + "' n'appartient pas morphologiquement à la racine '" + racine + "'");
     }
 
-    // ================= Analyse inversée (mot -> racine + schème) =================
+    // ================= Analyse inversée =================
     public void analyserMot(String mot) {
         for (Node node : arbre.getAllNodes()) {
             for (Scheme s : schemes.values()) {
-                if (s.generate(node.racine).equals(mot)) {
-                    System.out.println("✅ Mot : " + mot + " appartient à la racine " + node.racine + ", schème : " + s.nom);
+                if (mot.equals(s.generate(node.racine))) {
+                    System.out.println("✅ Analyse réussie :");
+                    System.out.println("   Mot    : '" + mot + "'");
+                    System.out.println("   Racine : '" + node.racine + "'");
+                    System.out.println("   Schème : '" + s.nom + "'");
                     return;
                 }
             }
         }
-        System.out.println("❌ Mot : " + mot + " n'appartient à aucune racine connue.");
+        System.out.println("❌ Mot inconnu : '" + mot + "'");
     }
 
+    // ================= Ajout d'un nouveau schème =================
+    public void ajouterScheme(String nom, String type, Scheme.Transformation rule) {
+        if (schemes.containsKey(nom)) {
+            System.out.println("❌ Ce schème existe déjà !");
+            return;
+        }
+        schemes.put(nom, new Scheme(nom, type, rule));
+        System.out.println("✅ Schème ajouté : " + nom);
+    }
+     // ================= Affichage des dérivés d'une racine =================//
+    public void afficherDerivesRacine(String racine) {
+    Node node = arbre.rechercher(racine);
+    if (node == null) {
+        System.out.println("❌ Racine non trouvée : " + racine);
+        return;
+    }
+
+    System.out.println("=== Dérivés de la racine '" + racine + "' ===");
+    if (node.derives.isEmpty()) {
+        System.out.println("❌ Aucun mot dérivé pour cette racine");
+    } else {
+        for (String mot : node.derives) {
+            System.out.println("- " + mot);
+        }
+    }
+}
+
+
+    // ================= Getters pour menus =================
+    public List<String> getAllRacines() {
+        List<String> racines = new ArrayList<>();
+        for (Node n : arbre.getAllNodes()) {
+            racines.add(n.racine);
+        }
+        return racines;
+    }
+
+    public List<String> getAllSchemes() {
+        return new ArrayList<>(schemes.keySet());
+    }
+
+    
 }
