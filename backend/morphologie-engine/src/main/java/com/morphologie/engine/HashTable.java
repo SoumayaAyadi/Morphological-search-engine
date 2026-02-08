@@ -1,3 +1,5 @@
+package com.morphologie.engine;
+
 import java.util.HashMap; 
  
 public class HashTable { 

@@ -1,4 +1,7 @@
 // Scheme.java
+package com.morphologie.engine;
+
+
 public class Scheme {
 
     String nom;    // nom du schème

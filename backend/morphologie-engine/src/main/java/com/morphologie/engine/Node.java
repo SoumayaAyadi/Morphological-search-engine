@@ -1,3 +1,6 @@
+package com.morphologie.engine;
+
+import com.morphologie.utils.RTLFormatter;
 import java.util.ArrayList;
 import java.util.List;
 

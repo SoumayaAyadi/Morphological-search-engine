@@ -1,5 +1,16 @@
+package com.morphologie.cli;
+
+import com.morphologie.engine.AVLTree;
+import com.morphologie.engine.Morphologie;
+import com.morphologie.engine.Node;
+import com.morphologie.engine.HashTable;
+import com.morphologie.engine.Scheme;
+import com.morphologie.utils.FileLoader;
+import com.morphologie.utils.RTLFormatter;
+import com.morphologie.utils.FileLoader;
 import java.util.Scanner;
 import java.util.List;
+
 
 public class Main {
     public static void main(String[] args) throws Exception {
