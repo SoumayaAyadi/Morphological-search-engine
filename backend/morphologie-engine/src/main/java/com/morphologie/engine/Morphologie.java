@@ -1,6 +1,5 @@
 package com.morphologie.engine;
 import com.morphologie.utils.RTLFormatter;
-//import com.morphologie.utils.FileLoader;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,57 +19,48 @@ public class Morphologie {
     private void initSchemes() {
 
         // NORMAL : فَعَلَ
-        schemes.put("فَعَلَ", new Scheme("فَعَلَ", "NORMAL",
+        schemes.put("فَعَلَ", new Scheme("فَعَلَ",
                 (c1, c2, c3) -> c1 + "َ" + c2 + "َ" + c3 + "َ"));
 
         // NORMAL : فاعل
-        schemes.put("فاعل", new Scheme("فاعل", "NORMAL",
+        schemes.put("فاعل", new Scheme("فاعل",
                 (c1, c2, c3) -> c1 + "ا" + c2 + "ِ" + c3));
 
         // NORMAL : مفعول
-        schemes.put("مفعول", new Scheme("مفعول", "NORMAL",
+        schemes.put("مفعول", new Scheme("مفعول",
                 (c1, c2, c3) -> "م" + c1 + c2 + "و" + c3));
 
         // NORMAL : فاعلة
-        schemes.put("فاعلة", new Scheme("فاعلة", "NORMAL",
+        schemes.put("فاعلة", new Scheme("فاعلة",
                 (c1, c2, c3) -> c1 + "ا" + c2 + "ِ" + c3 + "ة"));
 
-        // NE9SA : الفعل الناقص
-        /*schemes.put("فعل_ناقص", new Scheme("فعل_ناقص", "NAQIS",
-            (c1, c2, c3) -> {
-                // Si 3ᵉ radical est و ou ي → on le transforme en ا
-                if (c3.equals("و") || c3.equals("ي")) return c1 + "َ" + c2 + "َا";
-                return c1 + "َ" + c2 + "َ" + c3;
-            }
-        ));*/
-
         // MAZID : radical répété
-        schemes.put("فعّل", new Scheme("فعّل", "MAZID",
+        schemes.put("فعّل", new Scheme("فعّل",
             (c1, c2, c3) -> c1 + c2 + "ّ" + c3 + "َ"
         ));
 
         // MAZID : افعل
-        schemes.put("افعل", new Scheme("افعل", "MAZID",
+        schemes.put("افعل", new Scheme("افعل",
                 (c1, c2, c3) -> "ا" + c1 + c2 + c3));
 
         // MAZID : انفعل
-        schemes.put("انفعل", new Scheme("انفعل", "MAZID",
+        schemes.put("انفعل", new Scheme("انفعل",
                 (c1, c2, c3) -> "ان" + c1 + c2 + c3));
 
         // MAZID : تفعّل
-        schemes.put("تفعّل", new Scheme("تفعّل", "MAZID",
+        schemes.put("تفعّل", new Scheme("تفعّل",
                 (c1, c2, c3) -> "ت" + c1 + c2 + "ّ" + c3 + "َ"));
 
         // MAZID : استفعل
-        schemes.put("استفعل", new Scheme("استفعل", "MAZID",
+        schemes.put("استفعل", new Scheme("استفعل",
                 (c1, c2, c3) -> "است" + c1 + c2 + c3));
 
         // MAZID : مفعّل
-        schemes.put("مفعّل", new Scheme("مفعّل", "MAZID",
+        schemes.put("مفعّل", new Scheme("مفعّل",
                 (c1, c2, c3) -> "م" + c1 + c2 + "ّ" + c3 + "َ"));
 
         // MAZID : فعول
-        schemes.put("فعول", new Scheme("فعول", "MAZID",
+        schemes.put("فعول", new Scheme("فعول",
                 (c1, c2, c3) -> "م" + c1 + c2 + "و" + c3));
     }
 
@@ -103,13 +93,30 @@ public class Morphologie {
     public void afficherSchemes() {
         System.out.println("\n=== SCHÈMES DISPONIBLES ===");
         for (Scheme s : schemes.values()) {
-            System.out.println("- " + RTLFormatter.rtl(s.nom) + " | type = " + s.type);
+            String typeInfo = s.isDynamic ? " (dynamique)" : " (explicite)";
+            System.out.println("- " + RTLFormatter.rtl(s.nom) + typeInfo);
         }
     }
 
     // ================= Modification / Suppression =================
     public void modifierScheme(String nom, String nouveauPattern) {
-        System.out.println("❌ Avec cette approche, modification pattern non autorisée directement !");
+        Scheme oldScheme = schemes.get(nom);
+        if (oldScheme == null) {
+            System.out.println("❌ Schème introuvable : " + RTLFormatter.rtl(nom));
+            return;
+        }
+        
+        // Validation : doit contenir ف ع ل
+        if (!nouveauPattern.contains("ف") || !nouveauPattern.contains("ع") || !nouveauPattern.contains("ل")) {
+            System.out.println("❌ Le nouveau schème doit contenir les lettres ف ع ل !");
+            return;
+        }
+        
+        // Créer un nouveau schème dynamique avec le nouveau pattern
+        Scheme newScheme = new Scheme(nouveauPattern);
+        schemes.remove(nom);
+        schemes.put(nouveauPattern, newScheme);
+        System.out.println("✅ Schème modifié : " + RTLFormatter.rtl(nom) + " → " + RTLFormatter.rtl(nouveauPattern));
     }
 
     public void supprimerScheme(String nom) {
@@ -155,13 +162,37 @@ public class Morphologie {
         System.out.println("❌ Mot inconnu : " + RTLFormatter.rtl(mot));
     }
 
-    // ================= Ajout d'un nouveau schème =================
-    public void ajouterScheme(String nom, String type, Scheme.Transformation rule) {
+    // ================= Ajout d'un nouveau schème (DYNAMIQUE) =================
+    public void ajouterScheme(String nom) {
+        // Validation 1 : Non null et non vide
+        if (nom == null || nom.trim().isEmpty()) {
+            System.out.println("❌ Le schème ne peut pas être vide !");
+            return;
+        }
+        
+        // Validation 2 : Doit contenir ف ع ل
+        if (!nom.contains("ف") || !nom.contains("ع") || !nom.contains("ل")) {
+            System.out.println("❌ Le schème doit contenir les lettres ف ع ل !");
+            return;
+        }
+        
+        // Validation 3 : Ne doit pas déjà exister
         if (schemes.containsKey(nom)) {
             System.out.println("❌ Ce schème existe déjà !");
             return;
         }
-        schemes.put(nom, new Scheme(nom, type, rule));
+        
+        schemes.put(nom, new Scheme(nom));
+        System.out.println("✅ Schème ajouté : " + RTLFormatter.rtl(nom));
+    }
+    
+    // ================= Ajout avec règle explicite (pour compatibilité) =================
+    public void ajouterScheme(String nom, Scheme.Transformation rule) {
+        if (schemes.containsKey(nom)) {
+            System.out.println("❌ Ce schème existe déjà !");
+            return;
+        }
+        schemes.put(nom, new Scheme(nom, rule));
         System.out.println("✅ Schème ajouté : " + RTLFormatter.rtl(nom));
     }
     

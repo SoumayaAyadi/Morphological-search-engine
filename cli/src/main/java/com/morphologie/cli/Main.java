@@ -1,13 +1,9 @@
 package com.morphologie.cli;
 
-import com.morphologie.engine.AVLTree;
+
 import com.morphologie.engine.Morphologie;
-import com.morphologie.engine.Node;
-import com.morphologie.engine.HashTable;
-import com.morphologie.engine.Scheme;
 import com.morphologie.utils.FileLoader;
 import com.morphologie.utils.RTLFormatter;
-import com.morphologie.utils.FileLoader;
 import java.util.Scanner;
 import java.util.List;
 
@@ -33,7 +29,12 @@ public class Main {
             System.out.println("0. Quitter");
             System.out.print("Choix : ");
 
+            if (!sc.hasNextLine()) {
+                System.out.println("\n⛔ Interruption détectée. Fermeture propre...");
+                break;
+            }
             String c = sc.nextLine();
+
 
             switch (c) {
                 case "1":
@@ -85,7 +86,7 @@ public class Main {
                 case "5":
                     System.out.print("Nom du schème à modifier : ");
                     String nomMod = sc.nextLine();
-                    System.out.print("Nouveau pattern : ");
+                    System.out.print("Nouveau schème (utilise ف ع ل) : ");
                     String pattern = sc.nextLine();
                     engine.modifierScheme(nomMod, pattern);
                     break;
@@ -111,16 +112,17 @@ public class Main {
                     break;
                     
                 case "9":
-                    System.out.print("Nom du nouveau schème : ");
+                    System.out.println("\n=== AJOUTER UN NOUVEAU SCHÈME ===");
+                    System.out.println("Instructions : Entrez le schème directement avec " + RTLFormatter.rtl("ف ع ل")); 
+                    System.out.println("Exemple :");
+                    System.out.println("  - Tapez : " + RTLFormatter.rtl("تفاعل"));
+
+                    System.out.println();
+                    
+                    System.out.print("Schème : ");
                     String nom = sc.nextLine();
 
-                    System.out.print("Type (NORMAL / NAQIS / MAZID) : ");
-                    String type = sc.nextLine();
-
-                    // Exemple de règle par défaut (tu peux personnaliser la fonction)
-                    Scheme.Transformation rule = (c1, c2, c3) -> c1 + c2 + c3;
-
-                    engine.ajouterScheme(nom, type, rule);
+                    engine.ajouterScheme(nom);
                     break;
 
                 case "10":
