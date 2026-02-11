@@ -226,4 +226,11 @@ public class Morphologie {
     public List<String> getAllSchemes() {
         return new ArrayList<>(schemes.keySet());
     }
+    
+    /**
+     * Get a scheme by name
+     */
+    public Scheme getScheme(String schemeName) {
+        return schemes.get(schemeName);
+    }
 }

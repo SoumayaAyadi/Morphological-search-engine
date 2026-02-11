@@ -38,3 +38,6 @@ yarn-error.log
 # Build
 dist/
 build/
+
+
+backend/morphologie-api/src/main/resources/application.properties
