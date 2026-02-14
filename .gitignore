@@ -38,6 +38,9 @@ yarn-error.log
 # Build
 dist/
 build/
-
+# 🔐 Environment variables
+.env
+.env.local
+.env.*.local
 
 backend/morphologie-api/src/main/resources/application.properties
