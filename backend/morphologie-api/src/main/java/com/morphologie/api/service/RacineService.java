@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// ============= Racine Service =============
 @Service
 public class RacineService {
     
@@ -22,51 +21,32 @@ public class RacineService {
         this.engine = engine;
     }
     
-    /**
-     * Add a new racine
-     */
     @Transactional
     public Racine addRacine(String racineText) {
-        // Validate
         if (racineText == null || racineText.trim().isEmpty()) {
             throw new InvalidRacineException("Racine cannot be empty");
         }
-        
         if (racineText.length() != 3) {
             throw new InvalidRacineException("Racine must be exactly 3 letters");
         }
-        
-        // Check if already exists
         if (racineRepository.existsByRacine(racineText)) {
             throw new RacineAlreadyExistsException(racineText);
         }
         
-        // Add to engine AVL tree
         engine.arbre.addRacine(racineText);
-        
-        // Save to MongoDB
         Racine racine = new Racine(racineText);
         return racineRepository.save(racine);
     }
     
-    /**
-     * Get all racines
-     */
     public List<Racine> getAllRacines() {
         return racineRepository.findAll();
     }
     
-    /**
-     * Get racine by its text
-     */
     public Racine getRacine(String racineText) {
         return racineRepository.findByRacine(racineText)
                 .orElseThrow(() -> new RacineNotFoundException(racineText));
     }
     
-    /**
-     * Get racine with all its derives
-     */
     public RacineWithDerivesResponse getRacineWithDerives(String racineText) {
         Racine racine = getRacine(racineText);
         
@@ -88,24 +68,42 @@ public class RacineService {
         return response;
     }
     
-    /**
-     * Delete a racine
-     */
     @Transactional
-    public void deleteRacine(String racineText) {
-        if (!racineRepository.existsByRacine(racineText)) {
-            throw new RacineNotFoundException(racineText);
+    public Racine updateRacine(String oldRacine, String newRacine) {
+        System.out.println("🔄 Updating in service: " + oldRacine + " -> " + newRacine);
+        
+        Racine racine = racineRepository.findByRacine(oldRacine)
+                .orElseThrow(() -> new RacineNotFoundException(oldRacine));
+        
+        if (!oldRacine.equals(newRacine) && racineRepository.existsByRacine(newRacine)) {
+            throw new RacineAlreadyExistsException(newRacine);
         }
         
-        racineRepository.deleteByRacine(racineText);
+        racine.setRacine(newRacine);
+        Racine updated = racineRepository.save(racine);
         
-        // Note: We don't remove from AVL tree since it would require tree reconstruction
-        // In production, you might want to reinitialize the engine or implement AVL delete
+        try {
+            engine.arbre.addRacine(newRacine);
+        } catch (Exception e) {
+            System.err.println("⚠️ Warning: Could not update engine: " + e.getMessage());
+        }
+        
+        return updated;
     }
     
-    /**
-     * Get total count of racines
-     */
+  @Transactional
+public void deleteRacine(String racineText) {
+    System.out.println("🟢 Service: Attempting to delete racine: '" + racineText + "'");
+    
+    // تأكد بلي الجذر موجود قبل الحذف
+    if (!racineRepository.existsByRacine(racineText)) {
+        System.out.println("🔴 Racine not found: " + racineText);
+        throw new RacineNotFoundException(racineText);
+    }
+    
+    racineRepository.deleteByRacine(racineText);
+    System.out.println("✅ Racine deleted successfully: " + racineText);
+}
     public long getRacineCount() {
         return racineRepository.count();
     }

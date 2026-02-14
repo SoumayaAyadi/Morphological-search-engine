@@ -1,5 +1,4 @@
-// GenerateScreen.js - تصميم راقي ومتطور
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,11 +7,16 @@ import {
   ScrollView,
   Animated,
   Modal,
-  FlatList
+  FlatList,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
-import { colors, shadows } from './theme';
+import { colors } from './theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { racineService } from '../services/racineService';
+import { schemeService } from '../services/schemeService';
+import { morphologyService } from '../services/morphologyService';
 
 export default function GenerateScreen() {
   const [result, setResult] = useState('...');
@@ -22,402 +26,373 @@ export default function GenerateScreen() {
   const [showSchemesModal, setShowSchemesModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedWords, setGeneratedWords] = useState([]);
-  const [animationValue] = useState(new Animated.Value(0));
+  const [roots, setRoots] = useState([]);
+  const [schemes, setSchemes] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [resultScale] = useState(new Animated.Value(1));
 
-  // بيانات الأمثلة
-  const sampleRoots = [
-    { id: '1', root: 'كتب', meaning: 'الكتابة', frequency: 'عالية' },
-    { id: '2', root: 'درس', meaning: 'التعليم', frequency: 'عالية' },
-    { id: '3', root: 'علم', meaning: 'المعرفة', frequency: 'متوسطة' },
-    { id: '4', root: 'عمل', meaning: 'الفعل', frequency: 'عالية' },
-    { id: '5', root: 'حكم', meaning: 'القضاء', frequency: 'متوسطة' },
-    { id: '6', root: 'سفر', meaning: 'السفر', frequency: 'منخفضة' },
-    { id: '7', root: 'شرح', meaning: 'التوضيح', frequency: 'متوسطة' },
-    { id: '8', root: 'نظر', meaning: 'الرؤية', frequency: 'عالية' },
+  // الأوزان الافتراضية
+  const defaultSchemes = [
+    { id: '1', name: 'فاعل' },
+    { id: '2', name: 'مفعول' },
+    { id: '3', name: 'تفاعل' },
+    { id: '4', name: 'انفعل' },
+    { id: '5', name: 'افتعل' },
+    { id: '6', name: 'استفعل' },
+    { id: '7', name: 'تفعيل' },
+    { id: '8', name: 'فعال' },
+    { id: '9', name: 'فعيل' },
+    { id: '10', name: 'فعولة' },
   ];
 
-  const sampleSchemes = [
-    { id: '1', name: 'فاعل', rule: 'C1 + ا + C2 + C3', examples: 'كاتب، دارس' },
-    { id: '2', name: 'مفعول', rule: 'م + C1 + C2 + و + C3', examples: 'مكتوب، معلوم' },
-    { id: '3', name: 'فعّال', rule: 'C1 + C2 + ا + C3', examples: 'كتّاب، علّام' },
-    { id: '4', name: 'مفعل', rule: 'م + C1 + C2 + C3', examples: 'مكتب، مدرس' },
-    { id: '5', name: 'استفعل', rule: 'ا + س + ت + C1 + C2 + C3', examples: 'استخدم، استعلم' },
-    { id: '6', name: 'تفعيل', rule: 'ت + C1 + C2 + ي + C3', examples: 'تطوير، تنظيم' },
-  ];
+  // تحميل البيانات
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleGenerate = () => {
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      console.log('🔵 جاري تحميل البيانات...');
+      
+      // تحميل الجذور
+      let rootsData = [];
+      try {
+        const rootsRes = await racineService.getAllRacines();
+        console.log('🔵 rootsRes:', rootsRes);
+        
+        if (Array.isArray(rootsRes)) {
+          rootsData = rootsRes;
+        } else if (rootsRes && rootsRes.data) {
+          rootsData = rootsRes.data;
+        }
+      } catch (error) {
+        console.error('🔴 Error loading roots:', error);
+      }
+      
+      setRoots(rootsData.map((r, i) => ({ 
+        id: i.toString(), 
+        root: r.racine || r 
+      })));
+
+      // تحميل الأوزان
+      let schemesData = [];
+      try {
+        const schemesRes = await schemeService.getAllSchemes();
+        console.log('🔵 schemesRes:', schemesRes);
+        
+        if (Array.isArray(schemesRes)) {
+          schemesData = schemesRes;
+        } else if (schemesRes && schemesRes.data) {
+          schemesData = schemesRes.data;
+        }
+      } catch (error) {
+        console.error('🔴 Error loading schemes:', error);
+      }
+      
+      console.log('🔵 schemesData length:', schemesData.length);
+      
+      // تحويل الأوزان للشكل المطلوب
+      const formattedSchemes = schemesData.map((s, index) => {
+        let name = '';
+        
+        if (typeof s === 'string') {
+          name = s;
+        } else if (s && typeof s === 'object') {
+          name = s.nom || s.name || s.pattern || s.scheme || '';
+        }
+        
+        return {
+          id: index.toString(),
+          name: name,
+        };
+      }).filter(s => s.name);
+      
+      console.log('🔵 formattedSchemes:', formattedSchemes);
+      
+      // إذا كانت الأوزان فاضية، استعمل الافتراضية
+      if (formattedSchemes.length === 0) {
+        console.log('⚠️ استعمال الأوزان الافتراضية');
+        setSchemes(defaultSchemes);
+      } else {
+        setSchemes(formattedSchemes);
+      }
+      
+    } catch (error) {
+      console.error('🔴 Error loading data:', error);
+      // في حالة الخطأ، استعمل الأوزان الافتراضية
+      setSchemes(defaultSchemes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🧪 دالة اختبار التوليد
+  const testGenerate = async () => {
+    try {
+      console.log('🧪 Testing generate with: كتب + فاعل');
+      
+      setLoading(true);
+      const testRes = await morphologyService.generateWord('كتب', 'فاعل');
+      console.log('🧪 Test result:', testRes);
+      
+      let resultText = '';
+      if (typeof testRes === 'string') {
+        resultText = testRes;
+      } else if (testRes?.word) {
+        resultText = testRes.word;
+      } else {
+        resultText = JSON.stringify(testRes, null, 2);
+      }
+      
+      Alert.alert(
+        '✅ نتيجة الاختبار',
+        `الكلمة المولدة: ${resultText}`,
+        [
+          { text: 'حسناً', style: 'default' }
+        ]
+      );
+    } catch (error) {
+      console.error('🧪 Test error:', error);
+      
+      Alert.alert(
+        '❌ خطأ في الاختبار',
+        `الخطأ: ${error.message}\n\n${error.response?.data ? JSON.stringify(error.response.data) : ''}`,
+        [
+          { text: 'حسناً', style: 'cancel' }
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 📋 دالة عرض الأوزان المتوفرة
+  const showAvailableSchemes = () => {
+    const schemesList = schemes.map(s => s.name).join('، ');
+    Alert.alert(
+      'الأوزان المتوفرة',
+      `عدد الأوزان: ${schemes.length}\n\n${schemesList}`
+    );
+  };
+
+  // توليد كلمة
+  const handleGenerate = async () => {
     if (!selectedRoot || !selectedScheme) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('تنبيه', 'اختر الجذر والنمط أولاً');
       return;
     }
 
     setIsGenerating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // محاكاة توليد الكلمة
-    setTimeout(() => {
-      const generatedWordsMap = {
-        'كتب': {
-          'فاعل': 'كاتب',
-          'مفعول': 'مكتوب',
-          'فعّال': 'كتّاب',
-          'مفعل': 'مكتب',
-          'استفعل': 'استكتب',
-          'تفعيل': 'كتابة',
-        },
-        'درس': {
-          'فاعل': 'دارس',
-          'مفعول': 'مدروس',
-          'فعّال': 'درّاس',
-          'مفعل': 'مدرس',
-          'استفعل': 'استدرك',
-          'تفعيل': 'تدريس',
-        },
-        'علم': {
-          'فاعل': 'عالم',
-          'مفعول': 'معلوم',
-          'فعّال': 'علّام',
-          'مفعل': 'معلَم',
-          'استفعل': 'استعلم',
-          'تفعيل': 'تعليم',
-        },
-      };
-
-      const newWord = generatedWordsMap[selectedRoot.root]?.[selectedScheme.name] || 'مولد';
-
+    try {
+      console.log('🔵 Generating:', selectedRoot.root, selectedScheme.name);
+      
+      const response = await morphologyService.generateWord(selectedRoot.root, selectedScheme.name);
+      console.log('🔵 Generate response:', response);
+      
+      let newWord = '...';
+      
+      if (typeof response === 'string') {
+        newWord = response;
+      } else if (response?.word) {
+        newWord = response.word;
+      } else if (response?.data?.word) {
+        newWord = response.data.word;
+      } else if (response?.result) {
+        newWord = response.result;
+      } else {
+        newWord = JSON.stringify(response);
+      }
+      
       setResult(newWord);
-      setIsGenerating(false);
+      
+      Animated.sequence([
+        Animated.timing(resultScale, { toValue: 1.3, duration: 200, useNativeDriver: true }),
+        Animated.spring(resultScale, { toValue: 1, friction: 3, useNativeDriver: true })
+      ]).start();
 
-      // إضافة للقائمة
-      const newEntry = {
+      setGeneratedWords(prev => [{
         id: Date.now().toString(),
         word: newWord,
         root: selectedRoot.root,
-        scheme: selectedScheme.name,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      
-      setGeneratedWords(prev => [newEntry, ...prev].slice(0, 10));
-
-      // تأثيرات الرسوم المتحركة
-      Animated.sequence([
-        Animated.timing(resultScale, {
-          toValue: 1.3,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(resultScale, {
-          toValue: 1,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
+        scheme: selectedScheme.name
+      }, ...prev].slice(0, 5));
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 800);
+    } catch (error) {
+      console.error('🔴 Generate error:', error);
+      Alert.alert('خطأ', 'فشل التوليد: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const renderRootItem = ({ item }) => (
     <TouchableOpacity
-      style={[
-        styles.modalItem,
-        selectedRoot?.id === item.id && styles.selectedModalItem,
-      ]}
+      style={[styles.modalItem, selectedRoot?.id === item.id && styles.selectedModalItem]}
       onPress={() => {
+        console.log('🔵 Root selected:', item);
         setSelectedRoot(item);
         setShowRootsModal(false);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }}
     >
-      <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.itemRoot}>{item.root}</Text>
-          <View style={[
-            styles.frequencyBadge,
-            { backgroundColor: getFrequencyColor(item.frequency) }
-          ]}>
-            <Text style={styles.frequencyText}>{item.frequency}</Text>
-          </View>
-        </View>
-        <Text style={styles.itemMeaning}>{item.meaning}</Text>
-      </View>
-      <Ionicons 
-        name="checkmark-circle" 
-        size={24} 
-        color={selectedRoot?.id === item.id ? colors.secondary : 'transparent'} 
-      />
+      <Text style={styles.itemText}>{item.root}</Text>
+      {selectedRoot?.id === item.id && (
+        <Ionicons name="checkmark-circle" size={24} color={colors.secondary} />
+      )}
     </TouchableOpacity>
   );
 
-  const renderSchemeItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.modalItem,
-        selectedScheme?.id === item.id && styles.selectedModalItem,
-      ]}
-      onPress={() => {
-        setSelectedScheme(item);
-        setShowSchemesModal(false);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }}
-    >
-      <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.itemRoot}>{item.name}</Text>
-          <Text style={styles.itemRule}>{item.rule}</Text>
-        </View>
-        <Text style={styles.itemExamples}>مثال: {item.examples}</Text>
-      </View>
-      <Ionicons 
-        name="checkmark-circle" 
-        size={24} 
-        color={selectedScheme?.id === item.id ? colors.secondary : 'transparent'} 
-      />
-    </TouchableOpacity>
-  );
-
-  const getFrequencyColor = (frequency) => {
-    switch(frequency) {
-      case 'عالية': return 'rgba(34, 197, 94, 0.2)';
-      case 'متوسطة': return 'rgba(245, 158, 11, 0.2)';
-      case 'منخفضة': return 'rgba(239, 68, 68, 0.2)';
-      default: return 'rgba(148, 163, 184, 0.2)';
-    }
+  const renderSchemeItem = ({ item }) => {
+    return (
+      <TouchableOpacity
+        style={[styles.modalItem, selectedScheme?.id === item.id && styles.selectedModalItem]}
+        onPress={() => {
+          console.log('🔵 Scheme selected:', item);
+          setSelectedScheme(item);
+          setShowSchemesModal(false);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+      >
+        <Text style={styles.itemText}>{item.name}</Text>
+        {selectedScheme?.id === item.id && (
+          <Ionicons name="checkmark-circle" size={24} color={colors.secondary} />
+        )}
+      </TouchableOpacity>
+    );
   };
 
   const clearSelection = () => {
     setSelectedRoot(null);
     setSelectedScheme(null);
     setResult('...');
-    setGeneratedWords([]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   return (
-    <ScrollView 
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
-    >
-      {/* بطاقة التوليد الرئيسية */}
-      <View style={[styles.mainCard, shadows.medium]}>
-        <View style={styles.cardHeader}>
-          <View style={styles.headerIconContainer}>
-            <Ionicons name="sparkles" size={32} color={colors.secondary} />
-          </View>
-          <View>
-            <Text style={styles.title}>مولد الكلمات العربية</Text>
-            <Text style={styles.subtitle}>استخدم الجذور والأنماط لتوليد كلمات جديدة</Text>
-          </View>
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      {/* البطاقة الرئيسية */}
+      <View style={styles.mainCard}>
+        <Text style={styles.title}>مولد الكلمات</Text>
+        <Text style={styles.subtitle}>اختر جذراً ونمطاً لتوليد كلمة جديدة</Text>
+
+     
 
         {/* اختيار الجذر */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="cube-outline" size={18} /> اختر الجذر (من AVL Tree)
-          </Text>
+          <Text style={styles.label}>الجذر</Text>
           <TouchableOpacity
-            style={[styles.picker, shadows.soft]}
-            onPress={() => {
-              setShowRootsModal(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.8}
+            style={styles.picker}
+            onPress={() => setShowRootsModal(true)}
           >
-            <View style={styles.pickerContent}>
-              {selectedRoot ? (
-                <>
-                  <View style={styles.selectedItem}>
-                    <Text style={styles.selectedRootText}>{selectedRoot.root}</Text>
-                    <Text style={styles.selectedMeaning}>{selectedRoot.meaning}</Text>
-                  </View>
-                  <View style={[
-                    styles.frequencyBadgeSmall,
-                    { backgroundColor: getFrequencyColor(selectedRoot.frequency) }
-                  ]}>
-                    <Text style={styles.frequencyTextSmall}>{selectedRoot.frequency}</Text>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.pickerPlaceholderText}>اختر جذراً من القائمة</Text>
-              )}
-            </View>
+            <Text style={selectedRoot ? styles.selectedText : styles.placeholderText}>
+              {selectedRoot ? selectedRoot.root : 'اختر جذراً'}
+            </Text>
             <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* اختيار النمط */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="code-working" size={18} /> اختر النمط (من Hash Table)
-          </Text>
+          <Text style={styles.label}>النمط</Text>
           <TouchableOpacity
-            style={[styles.picker, shadows.soft]}
-            onPress={() => {
-              setShowSchemesModal(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.8}
+            style={styles.picker}
+            onPress={() => setShowSchemesModal(true)}
           >
-            <View style={styles.pickerContent}>
-              {selectedScheme ? (
-                <View style={styles.selectedItem}>
-                  <Text style={styles.selectedSchemeName}>{selectedScheme.name}</Text>
-                  <Text style={styles.selectedSchemeRule}>{selectedScheme.rule}</Text>
-                </View>
-              ) : (
-                <Text style={styles.pickerPlaceholderText}>اختر نمطاً من القائمة</Text>
-              )}
-            </View>
+            <Text style={selectedScheme ? styles.selectedText : styles.placeholderText}>
+              {selectedScheme ? selectedScheme.name : 'اختر نمطاً'}
+            </Text>
             <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* زر التوليد */}
         <TouchableOpacity
-          style={[
-            styles.generateButton,
-            shadows.medium,
-            (!selectedRoot || !selectedScheme || isGenerating) && styles.disabledButton,
-          ]}
+          style={[styles.generateButton, (!selectedRoot || !selectedScheme) && styles.disabledButton]}
           onPress={handleGenerate}
           disabled={!selectedRoot || !selectedScheme || isGenerating}
-          activeOpacity={0.8}
         >
           {isGenerating ? (
-            <View style={styles.generatingContainer}>
-              <Ionicons name="sync" size={20} color="#fff" style={styles.spinningIcon} />
-              <Text style={styles.generateButtonText}>جاري التوليد...</Text>
-            </View>
+            <ActivityIndicator color="#fff" />
           ) : (
-            <>
-              <Ionicons name="flash" size={22} color="#fff" />
-              <Text style={styles.generateButtonText}>توليد الكلمة</Text>
-            </>
+            <Text style={styles.generateButtonText}>توليد</Text>
           )}
         </TouchableOpacity>
 
-        {/* زر إعادة تعيين */}
-        <TouchableOpacity
-          style={styles.resetButton}
-          onPress={clearSelection}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="refresh" size={18} color={colors.textSecondary} />
-          <Text style={styles.resetButtonText}>إعادة تعيين</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* عرض النتيجة */}
-      <View style={[styles.resultContainer, shadows.medium]}>
-        <Text style={styles.resultLabel}>الكلمة المولدة:</Text>
-        <Animated.Text 
-          style={[
-            styles.resultText,
-            { transform: [{ scale: resultScale }] }
-          ]}
-        >
-          {result}
-        </Animated.Text>
-        {selectedRoot && selectedScheme && (
-          <Text style={styles.resultFormula}>
-            {selectedRoot.root} + {selectedScheme.name} = {result}
-          </Text>
+        {/* إعادة تعيين */}
+        {(selectedRoot || selectedScheme) && (
+          <TouchableOpacity onPress={clearSelection} style={styles.resetButton}>
+            <Text style={styles.resetText}>إعادة تعيين</Text>
+          </TouchableOpacity>
         )}
       </View>
 
-      {/* سجل الكلمات المولدة */}
+      {/* النتيجة */}
+      <View style={styles.resultCard}>
+        <Text style={styles.resultLabel}>النتيجة:</Text>
+        <Animated.Text style={[styles.resultText, { transform: [{ scale: resultScale }] }]}>
+          {result}
+        </Animated.Text>
+      </View>
+
+      {/* السجل */}
       {generatedWords.length > 0 && (
-        <View style={[styles.historyCard, shadows.medium]}>
-          <View style={styles.historyHeader}>
-            <Ionicons name="time-outline" size={22} color={colors.secondary} />
-            <Text style={styles.historyTitle}>سجل التوليد</Text>
-            <TouchableOpacity onPress={() => setGeneratedWords([])}>
-              <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <FlatList
-            data={generatedWords}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <View style={styles.historyItem}>
-                <View style={styles.historyItemContent}>
-                  <Text style={styles.historyWord}>{item.word}</Text>
-                  <Text style={styles.historyDetails}>
-                    من {item.root} بـ {item.scheme}
-                  </Text>
-                </View>
-                <Text style={styles.historyTime}>{item.timestamp}</Text>
-              </View>
-            )}
-          />
+        <View style={styles.historyCard}>
+          <Text style={styles.historyTitle}>آخر الكلمات</Text>
+          {generatedWords.map(item => (
+            <View key={item.id} style={styles.historyItem}>
+              <Text style={styles.historyWord}>{item.word}</Text>
+              <Text style={styles.historyDetails}>{item.root} + {item.scheme}</Text>
+            </View>
+          ))}
         </View>
       )}
 
-      {/* معلومات إرشادية */}
-      <View style={[styles.infoCard, shadows.soft]}>
-        <View style={styles.infoHeader}>
-          <Ionicons name="information-circle" size={22} color={colors.secondary} />
-          <Text style={styles.infoTitle}>كيف يعمل المولد؟</Text>
-        </View>
-        <Text style={styles.infoText}>
-          1. يتم استرجاع الجذور من شجرة AVL المحسنة للبحث
-        </Text>
-        <Text style={styles.infoText}>
-          2. يتم تطبيق الأنماط من جدول الهاش للتحويل
-        </Text>
-        <Text style={styles.infoText}>
-          3. توليد الكلمة باستخدام الخوارزميات المورفولوجية
-        </Text>
-      </View>
-
-      {/* نماذج الاختيار */}
-      <Modal
-        visible={showRootsModal}
-        transparent
-        animationType="slide"
-      >
+      {/* Modals */}
+      <Modal visible={showRootsModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, shadows.large]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>اختر الجذر</Text>
               <TouchableOpacity onPress={() => setShowRootsModal(false)}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <FlatList
-              data={sampleRoots}
-              renderItem={renderRootItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-            />
+            {loading ? (
+              <ActivityIndicator size="large" color={colors.secondary} style={styles.modalLoading} />
+            ) : (
+              <FlatList
+                data={roots}
+                renderItem={renderRootItem}
+                keyExtractor={item => item.id}
+              />
+            )}
           </View>
         </View>
       </Modal>
 
-      <Modal
-        visible={showSchemesModal}
-        transparent
-        animationType="slide"
-      >
+      <Modal visible={showSchemesModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, shadows.large]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>اختر النمط</Text>
               <TouchableOpacity onPress={() => setShowSchemesModal(false)}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <FlatList
-              data={sampleSchemes}
-              renderItem={renderSchemeItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-            />
+            {loading ? (
+              <ActivityIndicator size="large" color={colors.secondary} style={styles.modalLoading} />
+            ) : (
+              <FlatList
+                data={schemes}
+                renderItem={renderSchemeItem}
+                keyExtractor={item => item.id}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -428,376 +403,216 @@ export default function GenerateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 30,
   },
-  
-  // بطاقة التوليد الرئيسية
   mainCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
-  },
-  cardHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textPrimary,
+    color: '#0f172a',
     textAlign: 'right',
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#64748b',
     textAlign: 'right',
-    marginTop: 4,
-  },
-  
-  // أقسام الاختيار
-  section: {
     marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 12,
-    textAlign: 'right',
+  testButton: {
+    backgroundColor: '#f59e0b',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
     flexDirection: 'row-reverse',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
+  },
+  testButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  listButton: {
+    backgroundColor: '#3b82f6',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    flexDirection: 'row-reverse',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  listButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 8,
+    textAlign: 'right',
   },
   picker: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e2e8f0',
   },
-  pickerContent: {
-    flex: 1,
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pickerPlaceholderText: {
+  selectedText: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: '#0f172a',
     textAlign: 'right',
   },
-  selectedItem: {
-    flex: 1,
-  },
-  selectedRootText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  placeholderText: {
+    fontSize: 16,
+    color: '#94a3b8',
     textAlign: 'right',
   },
-  selectedMeaning: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginTop: 2,
-  },
-  selectedSchemeName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    textAlign: 'right',
-  },
-  selectedSchemeRule: {
-    fontSize: 14,
-    color: colors.secondary,
-    textAlign: 'right',
-    marginTop: 2,
-    fontFamily: 'monospace',
-  },
-  frequencyBadgeSmall: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  frequencyTextSmall: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  
-  // أزرار
   generateButton: {
-    backgroundColor: colors.secondary,
-    padding: 18,
+    backgroundColor: '#4f46e5',
+    padding: 16,
     borderRadius: 12,
-    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 8,
   },
   disabledButton: {
     backgroundColor: '#cbd5e1',
-    opacity: 0.7,
-  },
-  generatingContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-  },
-  spinningIcon: {
-    transform: [{ rotate: '0deg' }],
   },
   generateButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    marginRight: 10,
   },
   resetButton: {
-    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
     marginTop: 12,
   },
-  resetButtonText: {
-    color: colors.textSecondary,
+  resetText: {
+    color: '#64748b',
     fontSize: 14,
-    marginRight: 8,
   },
-  
-  // نتيجة التوليد
-  resultContainer: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 24,
+  resultCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   resultLabel: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: '#64748b',
     marginBottom: 12,
-    textAlign: 'center',
   },
   resultText: {
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: 'bold',
-    color: colors.secondary,
-    textAlign: 'center',
-    marginBottom: 8,
-    textShadowColor: 'rgba(79, 70, 229, 0.3)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 12,
+    color: '#4f46e5',
   },
-  resultFormula: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontFamily: 'monospace',
-    backgroundColor: 'rgba(148, 163, 184, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  
-  // سجل التوليد
   historyCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
-  },
-  historyHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   historyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginRight: 10,
+    color: '#0f172a',
+    textAlign: 'right',
+    marginBottom: 16,
   },
   historyItem: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(148, 163, 184, 0.1)',
-  },
-  historyItemContent: {
-    flex: 1,
+    borderBottomColor: '#e2e8f0',
   },
   historyWord: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'right',
+    color: '#0f172a',
   },
   historyDetails: {
     fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginTop: 4,
+    color: '#64748b',
   },
-  historyTime: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginLeft: 12,
-  },
-  
-  // معلومات إرشادية
-  infoCard: {
-    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(79, 70, 229, 0.1)',
-  },
-  infoHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginRight: 10,
-  },
-  infoText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginBottom: 6,
-    lineHeight: 22,
-  },
-  
-  // نماذج الاختيار
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.primary,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: '70%',
-    paddingTop: 20,
   },
   modalHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#e2e8f0',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
+    color: '#0f172a',
   },
   modalItem: {
     flexDirection: 'row-reverse',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    alignItems: 'center',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#e2e8f0',
   },
   selectedModalItem: {
     backgroundColor: 'rgba(79, 70, 229, 0.05)',
   },
-  itemContent: {
-    flex: 1,
+  itemText: {
+    fontSize: 16,
+    color: '#0f172a',
   },
-  itemHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  itemRoot: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  itemRule: {
-    fontSize: 14,
-    color: colors.secondary,
-    fontFamily: 'monospace',
-  },
-  frequencyBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  frequencyText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  itemMeaning: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'right',
-  },
-  itemExamples: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    fontStyle: 'italic',
+  modalLoading: {
+    padding: 40,
   },
 });
-
-// إضافة shadows إضافية
-const localShadows = {
-  soft: {
-    shadowColor: 'rgba(0, 0, 0, 0.05)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  medium: {
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  large: {
-    shadowColor: 'rgba(0, 0, 0, 0.15)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-};
+//la genration des mots//
+//le sound//

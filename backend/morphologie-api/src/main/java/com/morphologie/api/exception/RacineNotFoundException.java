@@ -1,10 +1,12 @@
 package com.morphologie.api.exception;
 
-
-
-// Racine not found exception
 public class RacineNotFoundException extends RuntimeException {
-    public RacineNotFoundException(String racine) {
-        super("Racine not found: " + racine);
+    
+    public RacineNotFoundException(String message) {
+        super(message);
+    }
+    
+    public RacineNotFoundException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

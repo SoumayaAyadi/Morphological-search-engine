@@ -1,536 +1,498 @@
-// AddRootScreen.js - تصميم احترافي ومتطور
-import React, { useState, useEffect, useRef } from 'react';
+// AddRootScreen.js - نسخة كاملة مع SweetAlert ✅
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  FlatList, 
-  KeyboardAvoidingView, 
-  Platform,
+  FlatList,
   ScrollView,
-  Animated,
   Alert,
+  Animated,
   Modal,
-  Dimensions
+  ActivityIndicator
 } from 'react-native';
-import { colors, shadows } from './theme';
+import { colors } from './theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
+import { racineService } from '../services/racineService';
 
 export default function AddRootScreen() {
+  // State للإضافة
   const [root, setRoot] = useState('');
-  const [roots, setRoots] = useState([
-    { id: '1', text: 'كتب', type: 'ثلاثي', frequency: 'عالية', date: '2024-03-15', meaning: 'الكتابة' },
-    { id: '2', text: 'دخل', type: 'ثلاثي', frequency: 'عالية', date: '2024-03-14', meaning: 'الدخول' },
-    { id: '3', text: 'خرج', type: 'ثلاثي', frequency: 'متوسطة', date: '2024-03-13', meaning: 'الخروج' },
-    { id: '4', text: 'قرأ', type: 'ثلاثي', frequency: 'عالية', date: '2024-03-12', meaning: 'القراءة' },
-    { id: '5', text: 'درس', type: 'ثلاثي', frequency: 'عالية', date: '2024-03-11', meaning: 'التعليم' },
-    { id: '6', text: 'علم', type: 'ثلاثي', frequency: 'متوسطة', date: '2024-03-10', meaning: 'المعرفة' },
-    { id: '7', text: 'فهم', type: 'ثلاثي', frequency: 'عالية', date: '2024-03-09', meaning: 'الفهم' },
-    { id: '8', text: 'عمل', type: 'ثلاثي', frequency: 'عالية', date: '2024-03-08', meaning: 'العمل' },
-  ]);
-  const [filterType, setFilterType] = useState('الكل');
-  const [showDetails, setShowDetails] = useState(false);
+  const [roots, setRoots] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // State للحذف
+  const [deleteLoading, setDeleteLoading] = useState(null);
+  
+  // State للتحديث
+  const [updateModalVisible, setUpdateModalVisible] = useState(false);
   const [selectedRoot, setSelectedRoot] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [updateValue, setUpdateValue] = useState('');
+  const [updateLoading, setUpdateLoading] = useState(false);
+  
+  // State للـ SweetAlert المخصص
+  const [sweetAlert, setSweetAlert] = useState({
+    visible: false,
+    rootToDelete: null,
+    message: '',
+    type: 'warning' // 'warning', 'success', 'error'
+  });
+  
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const inputAnim = useRef(new Animated.Value(0)).current;
+
+  // 📥 تحميل الجذور
+  const loadRoots = async () => {
+    try {
+      const response = await racineService.getAllRacines();
+      const rootsData = response.data || [];
+      
+      const formattedRoots = rootsData.map((root, index) => ({
+        id: root.id || index.toString(),
+        text: root.racine,
+        date: new Date(root.createdAt || Date.now()).toLocaleDateString('ar-SA'),
+        derives: root.derives?.length || 0
+      }));
+      
+      setRoots(formattedRoots);
+    } catch (error) {
+      console.error('Error loading roots:', error);
+    }
+  };
 
   useEffect(() => {
+    loadRoots();
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 800,
+      duration: 600,
       useNativeDriver: true,
     }).start();
   }, []);
 
-  const handleAddRoot = () => {
+  // ✅ التحقق من صحة الجذر
+  const validateRoot = (text) => {
+    if (text.length !== 3) {
+      Alert.alert('تنبيه', 'الجذر يجب أن يكون 3 أحرف');
+      return false;
+    }
+    const arabicRegex = /^[\u0600-\u06FF]+$/;
+    if (!arabicRegex.test(text)) {
+      Alert.alert('تنبيه', 'أحرف عربية فقط');
+      return false;
+    }
+    return true;
+  };
+
+  // ➕ إضافة جذر - مع SweetAlert
+  const handleAddRoot = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     if (root.length !== 3) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('خطأ في الإدخال', 'الجذر يجب أن يكون ثلاثي الأحرف (3 أحرف)', [
-        { text: 'حسناً' }
-      ]);
-      Animated.sequence([
-        Animated.timing(inputAnim, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.spring(inputAnim, {
-          toValue: 0,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      setSweetAlert({
+        visible: true,
+        message: '⚠️ الجذر يجب أن يكون 3 أحرف',
+        type: 'warning',
+        autoClose: true
+      });
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
       return;
     }
 
-    if (roots.some(r => r.text === root)) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('جذر موجود', 'هذا الجذر مضاف بالفعل إلى القائمة', [
-        { text: 'حسناً' }
-      ]);
-      return;
-    }
-
-    setIsProcessing(true);
-    
-    // محاكاة إضافة إلى شجرة AVL مع تأثيرات
-    setTimeout(() => {
-      const newRoot = {
-        id: Date.now().toString(),
-        text: root,
-        type: 'ثلاثي',
-        frequency: 'جديد',
-        date: new Date().toLocaleDateString('ar-SA'),
-        meaning: getRootMeaning(root),
-      };
-
-      // محاكاة إضافة متوازنة (شجرة AVL)
-      setRoots(prev => [newRoot, ...prev]);
-      setRoot('');
-      setIsProcessing(false);
+    try {
+      setLoading(true);
+      await racineService.addRacine(root);
       
-      // تأثيرات نجاح
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Animated.sequence([
-        Animated.timing(inputAnim, {
-          toValue: 1.1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.spring(inputAnim, {
-          toValue: 1,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
       
-      Alert.alert('✅ تم الإضافة', 
-        `تم إضافة الجذر "${root}" بنجاح إلى شجرة AVL`,
-        [{ text: 'ممتاز' }]
-      );
-    }, 600);
-  };
-
-  const getRootMeaning = (rootText) => {
-    const meanings = {
-      'كتب': 'الكتابة والتدوين',
-      'دخل': 'الدخول والمشاركة',
-      'خرج': 'الخروج والمغادرة',
-      'قرأ': 'القراءة والتلاوة',
-      'درس': 'التعليم والدراسة',
-      'علم': 'المعرفة والعلم',
-      'فهم': 'الفهم والإدراك',
-      'عمل': 'العمل والفعل',
-      'حكم': 'الحكم والقضاء',
-      'نظر': 'النظر والرؤية',
-      'سمع': 'السماع والإصغاء',
-      'قال': 'القول والتحدث',
-    };
-    return meanings[rootText] || 'معنى عام';
-  };
-
-  const handleDeleteRoot = (id, rootText) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    Alert.alert(
-      '⚠️ تأكيد الحذف',
-      `هل أنت متأكد من حذف الجذر "${rootText}"؟`,
-      [
-        { 
-          text: 'إلغاء', 
-          style: 'cancel',
-          onPress: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-        },
-        {
-          text: 'حذف',
-          style: 'destructive',
-          onPress: () => {
-            setRoots(roots.filter(r => r.id !== id));
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]
-    );
-  };
-
-  const showRootDetails = (rootItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedRoot(rootItem);
-    setShowDetails(true);
-  };
-
-  const getFrequencyColor = (frequency) => {
-    switch(frequency) {
-      case 'عالية': return '#10b981';
-      case 'متوسطة': return '#f59e0b';
-      case 'منخفضة': return '#ef4444';
-      case 'جديد': return '#8b5cf6';
-      default: return '#64748b';
-    }
-  };
-
-  const getFilteredRoots = () => {
-    let filtered = roots;
-    
-    // تطبيق البحث
-    if (searchQuery.trim() !== '') {
-      filtered = filtered.filter(r => 
-        r.text.includes(searchQuery) || 
-        r.meaning.includes(searchQuery)
-      );
-    }
-    
-    // تطبيق الفرز
-    filtered = [...filtered].sort((a, b) => {
-      if (sortBy === 'date') {
-        return new Date(b.date) - new Date(a.date);
-      } else if (sortBy === 'frequency') {
-        const order = { 'عالية': 4, 'متوسطة': 3, 'منخفضة': 2, 'جديد': 1 };
-        return order[b.frequency] - order[a.frequency];
-      } else if (sortBy === 'alphabetical') {
-        return a.text.localeCompare(b.text, 'ar');
+      setSweetAlert({
+        visible: true,
+        message: `✅ تم إضافة الجذر "${root}" بنجاح`,
+        type: 'success',
+        autoClose: true
+      });
+      
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+      
+      loadRoots();
+      setRoot('');
+      
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      
+      let message = '❌ فشل إضافة الجذر';
+      if (error.response?.status === 409) {
+        message = `⚠️ الجذر "${root}" موجود مسبقاً`;
       }
-      return 0;
-    });
-    
-    return filtered;
+      
+      setSweetAlert({
+        visible: true,
+        message,
+        type: 'error',
+        autoClose: true
+      });
+      
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const renderRootItem = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.rootCard, shadows.medium]}
-      onPress={() => showRootDetails(item)}
-      onLongPress={() => handleDeleteRoot(item.id, item.text)}
-      activeOpacity={0.9}
-    >
-      <View style={styles.rootHeader}>
-        <View style={styles.rootInfo}>
-          <Text style={styles.rootText}>{item.text}</Text>
-          <View style={[styles.typeBadge, { backgroundColor: item.type === 'ثلاثي' ? '#dbeafe' : '#f0f9ff' }]}>
-            <Ionicons name="cube" size={12} color={colors.secondary} />
-            <Text style={styles.typeText}>{item.type}</Text>
-          </View>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.deleteButton}
-          onPress={() => handleDeleteRoot(item.id, item.text)}
-        >
-          <Ionicons name="trash-outline" size={18} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
+  // 🗑️ حذف جذر - مع SweetAlert
+  const handleDeleteRoot = (rootText) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    setSweetAlert({
+      visible: true,
+      rootToDelete: rootText,
+      message: `🗑️ هل أنت متأكد من حذف الجذر "${rootText}"؟`,
+      type: 'warning'
+    });
+  };
+
+  // ✅ تنفيذ الحذف الفعلي
+  const confirmDelete = async () => {
+    const rootText = sweetAlert.rootToDelete;
+    
+    try {
+      setSweetAlert(prev => ({ ...prev, visible: false }));
       
-      <Text style={styles.rootMeaning}>{item.meaning}</Text>
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setDeleteLoading(rootText);
+      
+      await racineService.deleteRacine(rootText);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      setSweetAlert({
+        visible: true,
+        message: `✅ تم حذف الجذر "${rootText}" بنجاح`,
+        type: 'success',
+        autoClose: true
+      });
+      
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+      
+      loadRoots();
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      
+      setSweetAlert({
+        visible: true,
+        message: '❌ فشل حذف الجذر',
+        type: 'error',
+        autoClose: true
+      });
+      
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  // ✏️ فتح نافذة التحديث
+  const openUpdateModal = (rootItem) => {
+    setSelectedRoot(rootItem);
+    setUpdateValue(rootItem.text);
+    setUpdateModalVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // ✏️ تحديث جذر - مع SweetAlert
+  const handleUpdateRoot = async () => {
+    if (!selectedRoot) return;
+    
+    if (updateValue.length !== 3) {
+      setSweetAlert({
+        visible: true,
+        message: '⚠️ الجذر يجب أن يكون 3 أحرف',
+        type: 'warning',
+        autoClose: true
+      });
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+      return;
+    }
+
+    try {
+      setUpdateLoading(true);
+      
+      await racineService.updateRacine(selectedRoot.text, updateValue);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      setSweetAlert({
+        visible: true,
+        message: `✅ تم تحديث الجذر إلى "${updateValue}"`,
+        type: 'success',
+        autoClose: true
+      });
+      
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+      
+      setUpdateModalVisible(false);
+      loadRoots();
+      
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      
+      let message = '❌ فشل تحديث الجذر';
+      if (error.response?.status === 409) {
+        message = `⚠️ الجذر "${updateValue}" موجود مسبقاً`;
+      }
+      
+      setSweetAlert({
+        visible: true,
+        message,
+        type: 'error',
+        autoClose: true
+      });
+      
+      setTimeout(() => setSweetAlert(prev => ({ ...prev, visible: false })), 2000);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  // ✅ SweetAlert Modal المخصص
+  const SweetAlertModal = () => (
+    <Modal
+      visible={sweetAlert.visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => {
+        if (sweetAlert.type !== 'warning') {
+          setSweetAlert(prev => ({ ...prev, visible: false }));
+        }
+      }}
+    >
+      <View style={styles.sweetAlertOverlay}>
+        <View style={[
+          styles.sweetAlertContent,
+          sweetAlert.type === 'warning' && styles.sweetAlertWarning,
+          sweetAlert.type === 'success' && styles.sweetAlertSuccess,
+          sweetAlert.type === 'error' && styles.sweetAlertError,
+        ]}>
+          {/* أيقونة حسب النوع */}
+          <View style={styles.sweetAlertIcon}>
+            <Ionicons 
+              name={
+                sweetAlert.type === 'warning' ? 'warning' :
+                sweetAlert.type === 'success' ? 'checkmark-circle' :
+                'close-circle'
+              } 
+              size={60} 
+              color={
+                sweetAlert.type === 'warning' ? '#f59e0b' :
+                sweetAlert.type === 'success' ? '#10b981' :
+                '#ef4444'
+              } 
+            />
+          </View>
+          
+          {/* الرسالة */}
+          <Text style={styles.sweetAlertMessage}>{sweetAlert.message}</Text>
+          
+          {/* أزرار - تظهر فقط في نوع التحذير */}
+          {sweetAlert.type === 'warning' && (
+            <View style={styles.sweetAlertButtons}>
+              <TouchableOpacity
+                style={[styles.sweetAlertButton, styles.sweetAlertCancelButton]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSweetAlert(prev => ({ ...prev, visible: false }));
+                }}
+              >
+                <Text style={styles.sweetAlertCancelText}>❌ إلغاء</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.sweetAlertButton, styles.sweetAlertConfirmButton]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.sweetAlertConfirmText}>🗑️ نعم، احذف</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // 📋 عرض عنصر الجذر
+  const renderRootItem = ({ item }) => (
+    <View style={styles.rootCard}>
+      <View style={styles.rootHeader}>
+        <Text style={styles.rootText}>{item.text}</Text>
+        <View style={styles.actionButtons}>
+          {/* زر التحديث */}
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => openUpdateModal(item)}
+          >
+            <Ionicons name="pencil" size={18} color="#3b82f6" />
+          </TouchableOpacity>
+          
+          {/* زر الحذف مع SweetAlert */}
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => handleDeleteRoot(item.text)}
+            disabled={deleteLoading === item.text}
+          >
+            {deleteLoading === item.text ? (
+              <ActivityIndicator size="small" color="#ef4444" />
+            ) : (
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
       
       <View style={styles.rootFooter}>
-        <View style={styles.footerItem}>
-          <Ionicons name="trending-up" size={14} color={getFrequencyColor(item.frequency)} />
-          <Text style={[styles.frequencyText, { color: getFrequencyColor(item.frequency) }]}>
-            {item.frequency}
-          </Text>
+        <Text style={styles.rootDate}>{item.date}</Text>
+        <View style={styles.derivesBadge}>
+          <Ionicons name="git-network" size={12} color="#4f46e5" />
+          <Text style={styles.rootDerives}>{item.derives} مشتقات</Text>
         </View>
-        
-        <View style={styles.footerItem}>
-          <Ionicons name="calendar" size={14} color={colors.textSecondary} />
-          <Text style={styles.dateText}>{item.date}</Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.detailsButton}
-          onPress={() => showRootDetails(item)}
-        >
-          <Ionicons name="eye-outline" size={14} color={colors.secondary} />
-          <Text style={styles.detailsButtonText}>تفاصيل</Text>
-        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      {/* رأس الصفحة */}
-      <LinearGradient
-        colors={['#ffffff', '#f8fafc']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerIconContainer}>
-            <Ionicons name="git-network" size={32} color={colors.secondary} />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>الجذور العربية</Text>
+        <Text style={styles.subtitle}>إدارة جذور الكلمات</Text>
+        
+        {/* إحصائيات سريعة */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{roots.length}</Text>
+            <Text style={styles.statLabel}>إجمالي</Text>
           </View>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>إدارة الجذور العربية</Text>
-            <Text style={styles.subtitle}>إضافة وإدارة الجذور في شجرة AVL المتوازنة</Text>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{roots.filter(r => r.derives > 0).length}</Text>
+            <Text style={styles.statLabel}>مشتقات</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{roots.filter(r => r.derives === 0).length}</Text>
+            <Text style={styles.statLabel}>جديد</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* بطاقة الإضافة */}
-        <View style={[styles.inputCard, shadows.medium]}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="add-circle" size={28} color={colors.secondary} />
-            <Text style={styles.cardTitle}>إضافة جذر جديد</Text>
-          </View>
-          
-          <Text style={styles.inputLabel}>أدخل الجذر ثلاثي الأحرف</Text>
-          <Animated.View style={{ transform: [{ scale: inputAnim }] }}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={[styles.input, shadows.soft]}
-                placeholder="مثال: كتب، دخل، قرأ..."
-                placeholderTextColor="#94a3b8"
-                value={root}
-                onChangeText={setRoot}
-                maxLength={3}
-                textAlign="right"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              <Text style={styles.charCount}>{root.length}/3</Text>
-            </View>
-          </Animated.View>
-          
-          <Text style={styles.hintText}>
-            ⓘ الجذر ثلاثي الأحرف هو أساس معظم الكلمات العربية
-          </Text>
-          
-          <TouchableOpacity 
-            style={[
-              styles.addButton, 
-              shadows.medium,
-              (root.length !== 3 || isProcessing) && styles.disabledButton
-            ]}
-            onPress={handleAddRoot}
-            disabled={root.length !== 3 || isProcessing}
-            activeOpacity={0.8}
-          >
-            {isProcessing ? (
-              <View style={styles.processingContainer}>
-                <Ionicons name="sync" size={20} color="#fff" style={styles.spinningIcon} />
-                <Text style={styles.addButtonText}>جاري الإضافة إلى AVL...</Text>
-              </View>
-            ) : (
-              <>
-                <Ionicons name="git-commit" size={22} color="#fff" />
-                <Text style={styles.addButtonText}>إضافة إلى شجرة AVL</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* شريط البحث والفرز */}
-        <View style={[styles.filterCard, shadows.medium]}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color={colors.textSecondary} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* ➕ بطاقة الإضافة */}
+        <View style={styles.addCard}>
+          <Text style={styles.inputLabel}>جذر ثلاثي جديد</Text>
+          <View style={styles.inputContainer}>
             <TextInput
-              style={styles.searchInput}
-              placeholder="ابحث عن جذر أو معنى..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+              style={[styles.input, root.length === 3 && styles.inputValid]}
+              placeholder="مثال: كتب"
+              value={root}
+              onChangeText={setRoot}
+              maxLength={3}
               textAlign="right"
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          <View style={styles.sortContainer}>
-            <Text style={styles.sortLabel}>ترتيب حسب:</Text>
-            <View style={styles.sortButtons}>
-              {[
-                { key: 'date', label: 'الأحدث', icon: 'calendar' },
-                { key: 'frequency', label: 'التكرار', icon: 'trending-up' },
-                { key: 'alphabetical', label: 'الأبجدية', icon: 'text' },
-              ].map((sortOption) => (
-                <TouchableOpacity
-                  key={sortOption.key}
-                  style={[
-                    styles.sortButton,
-                    sortBy === sortOption.key && styles.sortButtonActive,
-                  ]}
-                  onPress={() => {
-                    setSortBy(sortOption.key);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <Ionicons 
-                    name={sortOption.icon} 
-                    size={14} 
-                    color={sortBy === sortOption.key ? colors.primary : colors.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.sortButtonText,
-                    sortBy === sortOption.key && styles.sortButtonTextActive,
-                  ]}>
-                    {sortOption.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* إحصائيات */}
-        <View style={[styles.statsCard, shadows.medium]}>
-          <View style={styles.statsHeader}>
-            <Ionicons name="stats-chart" size={24} color={colors.secondary} />
-            <Text style={styles.statsTitle}>إحصائيات الجذور</Text>
-          </View>
-          
-          <View style={styles.statsGrid}>
-            <View style={[styles.statItem, { backgroundColor: 'rgba(79, 70, 229, 0.1)' }]}>
-              <Text style={styles.statValue}>{roots.length}</Text>
-              <Text style={styles.statLabel}>إجمالي الجذور</Text>
-            </View>
-            
-            <View style={[styles.statItem, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-              <Text style={styles.statValue}>{roots.filter(r => r.frequency === 'عالية').length}</Text>
-              <Text style={styles.statLabel}>عالية التكرار</Text>
-            </View>
-            
-            <View style={[styles.statItem, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-              <Text style={styles.statValue}>{roots.filter(r => r.frequency === 'جديد').length}</Text>
-              <Text style={styles.statLabel}>جديدة</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* قائمة الجذور */}
-        <View style={styles.rootsSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="list" size={24} color={colors.secondary} />
-            <Text style={styles.sectionTitle}>
-              قائمة الجذور ({getFilteredRoots().length})
+            <Text style={[
+              styles.charCount,
+              root.length === 3 ? styles.charCountValid : styles.charCountInvalid
+            ]}>
+              {root.length}/3
             </Text>
           </View>
           
-          {getFilteredRoots().length === 0 ? (
+          <TouchableOpacity 
+            style={[styles.addButton, (root.length !== 3 || loading) && styles.disabledButton]}
+            onPress={handleAddRoot}
+            disabled={root.length !== 3 || loading}
+          >
+            <Text style={styles.addButtonText}>
+              {loading ? 'جاري الإضافة...' : '➕ إضافة جذر'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 📋 قائمة الجذور */}
+        <View style={styles.rootsSection}>
+          <Text style={styles.sectionTitle}>📚 الجذور المحفوظة ({roots.length})</Text>
+          
+          {roots.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="search-off" size={60} color={colors.border} />
-              <Text style={styles.emptyText}>لا توجد نتائج</Text>
-              <Text style={styles.emptySubtext}>حاول البحث بكلمة مختلفة</Text>
+              <Ionicons name="git-network-outline" size={60} color="#cbd5e1" />
+              <Text style={styles.emptyText}>لا توجد جذور</Text>
+              <Text style={styles.emptySubtext}>أضف جذراً جديداً</Text>
             </View>
           ) : (
             <FlatList
-              data={getFilteredRoots()}
+              data={roots}
               renderItem={renderRootItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.rootsList}
             />
           )}
         </View>
       </ScrollView>
 
-      {/* نموذج تفاصيل الجذر */}
+      {/* ✏️ Modal التحديث */}
       <Modal
-        visible={showDetails}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDetails(false)}
+        visible={updateModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setUpdateModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, shadows.large]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>تفاصيل الجذر</Text>
-              <TouchableOpacity 
-                onPress={() => setShowDetails(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Text style={styles.modalTitle}>✏️ تحديث الجذر</Text>
+              <TouchableOpacity onPress={() => setUpdateModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
-
-            {selectedRoot && (
-              <>
-                <View style={styles.modalRootHeader}>
-                  <Text style={styles.modalRootText}>{selectedRoot.text}</Text>
-                  <View style={[styles.modalTypeBadge, { backgroundColor: selectedRoot.type === 'ثلاثي' ? '#dbeafe' : '#f0f9ff' }]}>
-                    <Text style={styles.modalTypeText}>{selectedRoot.type}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.modalDetails}>
-                  <View style={styles.modalDetailRow}>
-                    <Ionicons name="book" size={18} color={colors.secondary} />
-                    <Text style={styles.modalDetailLabel}>المعنى:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedRoot.meaning}</Text>
-                  </View>
-                  <View style={styles.modalDetailRow}>
-                    <View style={[styles.modalFrequencyDot, { backgroundColor: getFrequencyColor(selectedRoot.frequency) }]} />
-                    <Text style={styles.modalDetailLabel}>مستوى التكرار:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedRoot.frequency}</Text>
-                  </View>
-                  <View style={styles.modalDetailRow}>
-                    <Ionicons name="calendar" size={18} color={colors.textSecondary} />
-                    <Text style={styles.modalDetailLabel}>تاريخ الإضافة:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedRoot.date}</Text>
-                  </View>
-                  <View style={styles.modalDetailRow}>
-                    <Ionicons name="git-network" size={18} color={colors.lightPurple} />
-                    <Text style={styles.modalDetailLabel}>الموقع في AVL:</Text>
-                    <Text style={styles.modalDetailValue}>مستوى {Math.floor(Math.random() * 5) + 1}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.modalInfo}>
-                  <Text style={styles.modalInfoTitle}>معلومات عن شجرة AVL:</Text>
-                  <Text style={styles.modalInfoText}>
-                    • يتم تخزين الجذور في شجرة AVL متوازنة
-                  </Text>
-                  <Text style={styles.modalInfoText}>
-                    • البحث في الجذور يتم بسرعة O(log n)
-                  </Text>
-                  <Text style={styles.modalInfoText}>
-                    • الشجرة تحافظ على توازنها تلقائياً
-                  </Text>
-                </View>
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={[styles.modalActionButton, { backgroundColor: colors.secondary }]}
-                    onPress={() => {
-                      setShowDetails(false);
-                      Alert.alert('استخدام الجذر', `سيتم استخدام الجذر "${selectedRoot.text}" في التوليد`);
-                    }}
-                  >
-                    <Ionicons name="flash" size={18} color="#fff" />
-                    <Text style={[styles.modalActionText, { color: '#fff' }]}>استخدام</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.modalActionButton}
-                    onPress={() => {
-                      setShowDetails(false);
-                      handleDeleteRoot(selectedRoot.id, selectedRoot.text);
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                    <Text style={[styles.modalActionText, { color: '#ef4444' }]}>حذف</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+            
+            <Text style={styles.modalLabel}>الجذر الحالي</Text>
+            <Text style={styles.modalCurrentValue}>{selectedRoot?.text}</Text>
+            
+            <Text style={styles.modalLabel}>الجذر الجديد</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={updateValue}
+              onChangeText={setUpdateValue}
+              maxLength={3}
+              textAlign="right"
+              autoFocus
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={() => setUpdateModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>❌ إلغاء</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.modalConfirmButton,
+                  (updateValue.length !== 3 || updateLoading) && styles.disabledButton
+                ]}
+                onPress={handleUpdateRoot}
+                disabled={updateValue.length !== 3 || updateLoading}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {updateLoading ? 'جاري...' : '✅ تحديث'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
+
+      {/* SweetAlert Modal */}
+      <SweetAlertModal />
     </Animated.View>
   );
 }
@@ -538,363 +500,207 @@ export default function AddRootScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fafc',
   },
-  
-  // رأس الصفحة
   header: {
-    paddingTop: 50,
+    backgroundColor: '#fff',
+    paddingTop: 60,
     paddingBottom: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerContent: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-  },
-  headerIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  headerText: {
-    flex: 1,
+    borderBottomColor: '#e2e8f0',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.textPrimary,
+    color: '#0f172a',
     textAlign: 'right',
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#64748b',
     textAlign: 'right',
     marginTop: 4,
   },
-  
-  // المحتوى
+  statsContainer: {
+    flexDirection: 'row-reverse',
+    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0f172a',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: '70%',
+    backgroundColor: '#e2e8f0',
+    alignSelf: 'center',
+  },
   scrollContent: {
     padding: 16,
-    paddingBottom: 30,
   },
-  
-  // بطاقة الإضافة
-  inputCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 24,
+  addCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 20,
-  },
-  cardHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 12,
+    color: '#64748b',
+    marginBottom: 8,
     textAlign: 'right',
   },
   inputContainer: {
     position: 'relative',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
-    padding: 18,
-    fontSize: 20,
-    color: colors.textPrimary,
+    padding: 14,
+    fontSize: 18,
+    color: '#0f172a',
     textAlign: 'right',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
     paddingRight: 50,
+  },
+  inputValid: {
+    borderColor: '#10b981',
+    backgroundColor: '#f0fdf4',
   },
   charCount: {
     position: 'absolute',
     left: 16,
-    top: 18,
+    top: 14,
     fontSize: 14,
-    color: colors.textSecondary,
+    fontWeight: 'bold',
   },
-  hintText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginBottom: 20,
-    lineHeight: 20,
+  charCountValid: {
+    color: '#10b981',
+  },
+  charCountInvalid: {
+    color: '#94a3b8',
   },
   addButton: {
-    backgroundColor: colors.secondary,
-    padding: 18,
+    backgroundColor: '#4f46e5',
+    padding: 14,
     borderRadius: 12,
-    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   disabledButton: {
     backgroundColor: '#cbd5e1',
-    opacity: 0.7,
-  },
-  processingContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-  },
-  spinningIcon: {
-    transform: [{ rotate: '0deg' }],
   },
   addButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    marginRight: 10,
   },
-  
-  // بطاقة البحث والفرز
-  filterCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-  },
-  searchContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 20,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.textPrimary,
-    textAlign: 'right',
-    marginHorizontal: 12,
-  },
-  sortContainer: {
-    marginBottom: 8,
-  },
-  sortLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 12,
-    textAlign: 'right',
-  },
-  sortButtons: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-  },
-  sortButton: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sortButtonActive: {
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-    borderColor: colors.secondary,
-  },
-  sortButtonText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginRight: 8,
-  },
-  sortButtonTextActive: {
-    color: colors.secondary,
-    fontWeight: 'bold',
-  },
-  
-  // بطاقة الإحصائيات
-  statsCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-  },
-  statsHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginRight: 12,
-  },
-  statsGrid: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginHorizontal: 4,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  
-  // قسم الجذور
   rootsSection: {
     marginBottom: 20,
   },
-  sectionHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginRight: 10,
-  },
-  rootsList: {
-    paddingBottom: 4,
-  },
-  
-  // بطاقة الجذر
-  rootCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: 16,
+    color: '#0f172a',
     marginBottom: 12,
+    textAlign: 'right',
+  },
+  rootCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
   },
   rootHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  rootInfo: {
-    flex: 1,
-    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   rootText: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
-    textAlign: 'right',
+    color: '#0f172a',
   },
-  typeBadge: {
+  actionButtons: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    marginRight: 12,
   },
-  typeText: {
-    fontSize: 12,
-    color: colors.secondary,
-    fontWeight: '600',
-    marginRight: 4,
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    marginLeft: 8,
   },
   deleteButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
-  rootMeaning: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginBottom: 12,
-    lineHeight: 22,
-  },
   rootFooter: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
-  footerItem: {
+  rootDate: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  derivesBadge: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
   },
-  frequencyText: {
+  rootDerives: {
     fontSize: 12,
+    color: '#4f46e5',
     fontWeight: '600',
     marginRight: 4,
   },
-  dateText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginRight: 4,
-  },
-  detailsButton: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-    borderRadius: 8,
-  },
-  detailsButtonText: {
-    fontSize: 12,
-    color: colors.secondary,
-    fontWeight: '600',
-    marginRight: 6,
-  },
-  
-  // حالة فارغة
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
     padding: 40,
-    backgroundColor: colors.primary,
-    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: colors.textSecondary,
+    color: '#64748b',
     marginTop: 16,
+    marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 8,
+    color: '#94a3b8',
     textAlign: 'center',
   },
-  
-  // نموذج التفاصيل
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -902,8 +708,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.primary,
-    borderRadius: 24,
+    backgroundColor: '#fff',
+    borderRadius: 20,
     padding: 24,
     width: '90%',
     maxWidth: 400,
@@ -913,109 +719,146 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
+    color: '#0f172a',
   },
-  closeButton: {
-    padding: 8,
-  },
-  modalRootHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalRootText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: colors.secondary,
-    textAlign: 'right',
-    flex: 1,
-  },
-  modalTypeBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: 12,
-  },
-  modalTypeText: {
-    color: colors.secondary,
+  modalLabel: {
     fontSize: 14,
-    fontWeight: 'bold',
-  },
-  modalDetails: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-  },
-  modalDetailRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalDetailLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginRight: 12,
-    minWidth: 100,
-  },
-  modalDetailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    flex: 1,
-    textAlign: 'right',
-  },
-  modalFrequencyDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 12,
-  },
-  modalInfo: {
-    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  modalInfoTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    color: '#64748b',
     marginBottom: 8,
     textAlign: 'right',
   },
-  modalInfoText: {
-    fontSize: 13,
-    color: colors.textSecondary,
+  modalCurrentValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4f46e5',
     textAlign: 'right',
-    marginBottom: 4,
-    lineHeight: 20,
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
   },
-  modalActions: {
+  modalInput: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 20,
+    color: '#0f172a',
+    textAlign: 'right',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    marginBottom: 24,
+  },
+  modalButtons: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
   },
-  modalActionButton: {
+  modalCancelButton: {
     flex: 1,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     backgroundColor: '#f1f5f9',
     marginLeft: 12,
+    alignItems: 'center',
   },
-  modalActionText: {
-    fontSize: 14,
+  modalCancelText: {
+    color: '#64748b',
     fontWeight: '600',
-    marginRight: 8,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#4f46e5',
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  // SweetAlert Styles
+  sweetAlertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sweetAlertContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 28,
+    width: '85%',
+    maxWidth: 340,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sweetAlertWarning: {
+    borderTopWidth: 6,
+    borderTopColor: '#f59e0b',
+  },
+  sweetAlertSuccess: {
+    borderTopWidth: 6,
+    borderTopColor: '#10b981',
+  },
+  sweetAlertError: {
+    borderTopWidth: 6,
+    borderTopColor: '#ef4444',
+  },
+  sweetAlertIcon: {
+    marginBottom: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sweetAlertMessage: {
+    fontSize: 18,
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontWeight: '500',
+    lineHeight: 26,
+  },
+  sweetAlertButtons: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  sweetAlertButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 6,
+  },
+  sweetAlertCancelButton: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+  },
+  sweetAlertConfirmButton: {
+    backgroundColor: '#ef4444',
+  },
+  sweetAlertCancelText: {
+    color: '#64748b',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  sweetAlertConfirmText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });
+
+
+//nzid des racines a partir min fichier //

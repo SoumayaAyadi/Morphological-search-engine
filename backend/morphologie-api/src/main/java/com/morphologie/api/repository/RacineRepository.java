@@ -2,20 +2,16 @@ package com.morphologie.api.repository;
 
 import com.morphologie.api.model.Racine;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
-
-// ============= Racine Repository =============
-@Repository
 public interface RacineRepository extends MongoRepository<Racine, String> {
     
-    // Find by racine (unique)
+    // ✅ هذه الدالة تبحث بالجذر (مش بالـ id)
     Optional<Racine> findByRacine(String racine);
     
-    // Check if racine exists
+    // ✅ هذه الدالة تتحقق من الوجود
     boolean existsByRacine(String racine);
     
-    // Delete by racine
+    // ✅ هذه الدالة تحذف بالجذر
     void deleteByRacine(String racine);
 }

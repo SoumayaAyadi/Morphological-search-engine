@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
-    
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
@@ -17,7 +17,7 @@ public class CorsConfig implements WebMvcConfigurer {
                     "http://localhost:3000",      // React Native web
                     "http://localhost:19006",     // Expo
                     "http://localhost:8081",      // Metro bundler
-                    "*"                           // For development only!
+                    "*"                           // Pour le développement seulement
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")

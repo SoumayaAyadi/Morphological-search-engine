@@ -25,20 +25,13 @@ function CustomDrawerContent(props: any) {
             <Ionicons name="leaf" size={40} color={colors.white} />
           </View>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>المحرك الصرفي</Text>
-          <Text style={{ color: colors.lightGold, fontSize: 12 }}>ISI 2025/2026</Text>
+          
         </View>
 
         {/* Liste des écrans */}
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
 
-      {/* Footer du Menu */}
-      <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }}>
-        <TouchableOpacity style={{ flexDirection: 'row-reverse', alignItems: 'center' }} onPress={() => alert('ISI - Mini Projet Algo')}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.lightGold} />
-          <Text style={{ color: '#fff', marginRight: 10 }}>حول التطبيق</Text>
-        </TouchableOpacity>
-      </View>
     </LinearGradient>
   );
 }
@@ -111,13 +104,6 @@ export default function AppLayout() {
         options={{ 
           title: 'قائمة الأنماط',
           drawerIcon: ({color}) => <Ionicons name="color-palette-outline" size={22} color={color} />
-        }} 
-      />
-      <Drawer.Screen 
-        name="DerivesScreen" 
-        options={{ 
-          title: 'المشتقات المولدة',
-          drawerIcon: ({color}) => <Ionicons name="library-outline" size={22} color={color} />
         }} 
       />
     </Drawer>

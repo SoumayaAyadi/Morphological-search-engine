@@ -2,9 +2,11 @@ package com.morphologie.api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration; // ZID HEDHA
+import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration; // W HEDHA
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {MongoAutoConfiguration.class, MongoDataAutoConfiguration.class})
 @EnableMongoRepositories(basePackages = "com.morphologie.api.repository")
 public class MorphologieApiApplication {
     
