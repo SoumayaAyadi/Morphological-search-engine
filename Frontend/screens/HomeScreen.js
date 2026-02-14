@@ -1,5 +1,5 @@
-// HomeScreen.js - نسخة كاملة مع SweetAlert ✅
-import React, { useState, useEffect } from 'react';
+// HomeScreen.js - نسخة محسنة مع ترتيب أبجدي ✅
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { racineService } from '../services/racineService';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const colors = {
   primary: '#ffffff',
@@ -68,10 +68,18 @@ export default function HomeScreen() {
     visible: false,
     rootToDelete: null,
     message: '',
-    type: 'warning' // 'warning', 'success', 'error'
+    type: 'warning'
   });
   
   const fadeAnim = useState(new Animated.Value(0))[0];
+
+  // دالة الترتيب الأبجدي للعربية
+  const sortArabicAlphabetically = (rootsList) => {
+    return [...rootsList].sort((a, b) => {
+      // ترتيب تصاعدي (أ - ي)
+      return a.racine.localeCompare(b.racine, 'ar');
+    });
+  };
 
   // 📥 تحميل كل الجذور مع مشتقاتها
   const loadAllRootsWithDerives = async () => {
@@ -79,12 +87,8 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
-      console.log('🔵 استدعاء racineService.getAllRacines()...');
       const response = await racineService.getAllRacines();
-      console.log('🔵 الاستجابة:', response);
-      
       const rootsData = response.data || response || [];
-      console.log(`🔵 عدد الجذور المستلمة: ${rootsData.length}`);
       
       const formattedRoots = rootsData.map((root, index) => {
         const derives = (root.derives || []).map((derive, idx) => ({
@@ -105,10 +109,11 @@ export default function HomeScreen() {
         };
       });
 
-      formattedRoots.sort((a, b) => b.totalDerives - a.totalDerives);
+      // ترتيب الجذور أبجدياً
+      const sortedRoots = sortArabicAlphabetically(formattedRoots);
       
-      setRoots(formattedRoots);
-      setFilteredRoots(formattedRoots);
+      setRoots(sortedRoots);
+      setFilteredRoots(sortedRoots);
       
       const totalDerives = formattedRoots.reduce((sum, root) => sum + root.totalDerives, 0);
       
@@ -138,14 +143,12 @@ export default function HomeScreen() {
       };
       
       setStats(newStats);
-      console.log('🔵 الإحصائيات المحدثة:', newStats);
 
     } catch (error) {
       console.error('🔴 خطأ في تحميل الجذور:', error);
       Alert.alert('خطأ', 'فشل تحميل الجذور من الخادم');
     } finally {
       setLoading(false);
-      console.log('🔵 ===== انتهاء تحميل الجذور =====\n');
     }
   };
 
@@ -190,6 +193,7 @@ export default function HomeScreen() {
     }).start();
   }, []);
 
+  // تحسين الفلترة مع الحفاظ على الترتيب الأبجدي
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredRoots(roots);
@@ -261,7 +265,6 @@ export default function HomeScreen() {
 
   // ✏️ فتح نافذة التحديث
   const openUpdateModal = (root) => {
-    console.log('✏️ فتح نافذة تحديث للجذر:', root.racine);
     setSelectedRoot(root);
     setUpdateValue(root.racine);
     setUpdateModalVisible(true);
@@ -270,18 +273,9 @@ export default function HomeScreen() {
 
   // ✏️ تحديث جذر
   const handleUpdateRoot = async () => {
-    console.log('\n🟡 ===== بداية تحديث الجذر =====');
-    
-    if (!selectedRoot) {
-      console.log('🟡 لا يوجد جذر محدد');
-      return;
-    }
-    
-    console.log('🟡 الجذر القديم:', selectedRoot.racine);
-    console.log('🟡 الجذر الجديد:', updateValue);
+    if (!selectedRoot) return;
     
     if (updateValue.length !== 3) {
-      console.log('🟡 الجذر الجديد غير صالح (يجب أن يكون 3 أحرف)');
       Alert.alert('تنبيه', 'الجذر يجب أن يكون 3 أحرف');
       return;
     }
@@ -289,9 +283,7 @@ export default function HomeScreen() {
     try {
       setUpdateLoading(true);
       
-      console.log('🟡 استدعاء racineService.updateRacine...');
       const response = await racineService.updateRacine(selectedRoot.racine, updateValue);
-      console.log('🟡 استجابة التحديث:', response);
       
       Alert.alert('نجاح', `تم تحديث الجذر إلى "${updateValue}"`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -304,19 +296,13 @@ export default function HomeScreen() {
       Alert.alert('خطأ', 'فشل تحديث الجذر');
     } finally {
       setUpdateLoading(false);
-      console.log('🟡 ===== انتهاء تحديث الجذر =====\n');
     }
   };
 
   // 🗑️ دالة الحذف مع SweetAlert
   const handleDeleteRoot = (root) => {
-    console.log("🔴 ===== بداية عملية الحذف =====");
-    console.log("🔴 الجذر المراد حذفه:", root);
-    
-    // ✅ تأثير الهابتك
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // ✅ إظهار SweetAlert المخصص
     setSweetAlert({
       visible: true,
       rootToDelete: root,
@@ -328,29 +314,19 @@ export default function HomeScreen() {
   // ✅ تنفيذ الحذف الفعلي
   const confirmDelete = async () => {
     const root = sweetAlert.rootToDelete;
-    console.log("🔴 تنفيذ الحذف للجذر:", root);
     
     try {
-      // ✅ إخفاء SweetAlert
       setSweetAlert(prev => ({ ...prev, visible: false }));
-      
-      // ✅ تأثير الهابتك ثقيل
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       
       setDeleteLoading(root);
-      console.log("🔴 إرسال طلب الحذف...");
       
       const response = await racineService.deleteRacine(root);
-      console.log("🟢 استجابة الحذف:", response);
       
       if (response && response.success) {
-        // ✅ تأثير نجاح
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
-        // ✅ إعادة تحميل البيانات
         await loadAllRootsWithDerives();
         
-        // ✅ SweetAlert نجاح
         setSweetAlert({
           visible: true,
           message: `✅ تم حذف الجذر "${root}" بنجاح`,
@@ -358,13 +334,10 @@ export default function HomeScreen() {
           autoClose: true
         });
         
-        // ✅ إخفاء تلقائي بعد 2 ثانية
         setTimeout(() => {
           setSweetAlert(prev => ({ ...prev, visible: false }));
         }, 2000);
-        
       } else {
-        // ✅ تأثير خطأ
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         
         setSweetAlert({
@@ -441,7 +414,6 @@ export default function HomeScreen() {
           sweetAlert.type === 'success' && styles.sweetAlertSuccess,
           sweetAlert.type === 'error' && styles.sweetAlertError,
         ]}>
-          {/* أيقونة حسب النوع */}
           <View style={styles.sweetAlertIcon}>
             <Ionicons 
               name={
@@ -458,10 +430,8 @@ export default function HomeScreen() {
             />
           </View>
           
-          {/* الرسالة */}
           <Text style={styles.sweetAlertMessage}>{sweetAlert.message}</Text>
           
-          {/* أزرار - تظهر فقط في نوع التحذير */}
           {sweetAlert.type === 'warning' && (
             <View style={styles.sweetAlertButtons}>
               <TouchableOpacity
@@ -482,8 +452,6 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           )}
-          
-          {/* رسائل النجاح/الخطأ تختفي تلقائياً */}
         </View>
       </View>
     </Modal>
@@ -502,13 +470,13 @@ export default function HomeScreen() {
         >
           <View style={styles.rootInfo}>
             <View style={styles.rootIconContainer}>
-              <Ionicons name="git-network" size={24} color={colors.secondary} />
+              <Ionicons name="git-network" size={22} color={colors.secondary} />
             </View>
             <View style={styles.rootTextContainer}>
               <Text style={styles.rootText}>{root.racine}</Text>
               <View style={styles.rootMeta}>
                 <View style={styles.badge}>
-                  <Ionicons name="cube" size={12} color={colors.secondary} />
+                  <Ionicons name="cube" size={10} color={colors.secondary} />
                   <Text style={styles.badgeText}>{root.totalDerives} مشتقات</Text>
                 </View>
                 <Text style={styles.rootDate}>{root.createdAt}</Text>
@@ -517,15 +485,13 @@ export default function HomeScreen() {
           </View>
           
           <View style={styles.rootActions}>
-            {/* زر التحديث */}
             <TouchableOpacity 
               style={styles.editButton}
               onPress={() => openUpdateModal(root)}
             >
-              <Ionicons name="pencil" size={18} color={colors.info} />
+              <Ionicons name="pencil" size={16} color={colors.info} />
             </TouchableOpacity>
             
-            {/* زر الحذف مع SweetAlert */}
             <TouchableOpacity 
               style={styles.deleteButton}
               onPress={() => handleDeleteRoot(root.racine)}
@@ -534,13 +500,13 @@ export default function HomeScreen() {
               {deleteLoading === root.racine ? (
                 <ActivityIndicator size="small" color={colors.danger} />
               ) : (
-                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
               )}
             </TouchableOpacity>
             
             <Ionicons 
               name={isExpanded ? "chevron-up" : "chevron-down"} 
-              size={22} 
+              size={20} 
               color={colors.textSecondary} 
             />
           </View>
@@ -550,7 +516,7 @@ export default function HomeScreen() {
           <View style={styles.derivesContainer}>
             {root.derives.length === 0 ? (
               <View style={styles.noDerives}>
-                <Ionicons name="alert-circle-outline" size={18} color={colors.textSecondary} />
+                <Ionicons name="alert-circle-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.noDerivesText}>لا توجد مشتقات لهذا الجذر</Text>
               </View>
             ) : (
@@ -564,7 +530,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.deriveFooter}>
                     <View style={styles.deriveMeta}>
-                      <Ionicons name="pricetag" size={12} color={colors.secondary} />
+                      <Ionicons name="pricetag" size={10} color={colors.secondary} />
                       <Text style={styles.deriveScheme}>{derive.scheme}</Text>
                     </View>
                     <Text style={styles.deriveDate}>{derive.date}</Text>
@@ -586,10 +552,10 @@ export default function HomeScreen() {
       {/* شريط البحث */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={22} color={colors.textSecondary} style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="ابحث عن جذر أو كلمة مشتقة..."
+            placeholder="ابحث عن جذر أو كلمة..."
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -597,7 +563,7 @@ export default function HomeScreen() {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -617,7 +583,7 @@ export default function HomeScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.secondary} />
-            <Text style={styles.loadingText}>جاري تحميل الجذور والمشتقات...</Text>
+            <Text style={styles.loadingText}>جاري التحميل...</Text>
           </View>
         ) : (
           <>
@@ -625,18 +591,18 @@ export default function HomeScreen() {
             <View style={styles.statsCard}>
               <View style={styles.statsHeader}>
                 <View style={styles.headerRight}>
-                  <Ionicons name="stats-chart" size={28} color={colors.secondary} />
+                  <Ionicons name="stats-chart" size={22} color={colors.secondary} />
                   <Text style={styles.statsTitle}>الإحصائيات</Text>
                 </View>
                 <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
-                  <Ionicons name="refresh" size={20} color={colors.secondary} />
+                  <Ionicons name="refresh" size={16} color={colors.secondary} />
                 </TouchableOpacity>
               </View>
               
               <View style={styles.statsGrid}>
                 <View style={[styles.statItem, { backgroundColor: 'rgba(79, 70, 229, 0.1)' }]}>
                   <View style={styles.statIconContainer}>
-                    <Ionicons name="git-network" size={24} color={colors.secondary} />
+                    <Ionicons name="git-network" size={20} color={colors.secondary} />
                   </View>
                   <Counter value={stats.totalRoots} />
                   <Text style={styles.statLabel}>الجذور</Text>
@@ -644,15 +610,15 @@ export default function HomeScreen() {
                 
                 <View style={[styles.statItem, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
                   <View style={styles.statIconContainer}>
-                    <Ionicons name="create" size={24} color={colors.accent} />
+                    <Ionicons name="create" size={20} color={colors.accent} />
                   </View>
                   <Counter value={stats.totalDerives} />
-                  <Text style={styles.statLabel}>كلمات مولدة</Text>
+                  <Text style={styles.statLabel}>مشتقات</Text>
                 </View>
                 
                 <View style={[styles.statItem, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
                   <View style={styles.statIconContainer}>
-                    <Ionicons name="layers" size={24} color={colors.lightPurple} />
+                    <Ionicons name="layers" size={20} color={colors.lightPurple} />
                   </View>
                   <Counter value={stats.categories} />
                   <Text style={styles.statLabel}>فئات</Text>
@@ -691,16 +657,19 @@ export default function HomeScreen() {
             <View style={styles.rootsContainer}>
               <View style={styles.rootsHeader}>
                 <View style={styles.headerRight}>
-                  <Ionicons name="library" size={28} color={colors.secondary} />
+                  <Ionicons name="library" size={22} color={colors.secondary} />
                   <Text style={styles.rootsTitle}>
-                    القاموس ({filteredRoots.length} جذر • {filteredRoots.reduce((sum, r) => sum + r.totalDerives, 0)} كلمة)
+                    القاموس ({filteredRoots.length})
                   </Text>
                 </View>
+                <Text style={styles.totalWords}>
+                  {filteredRoots.reduce((sum, r) => sum + r.totalDerives, 0)} كلمة
+                </Text>
               </View>
               
               {filteredRoots.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="search-off" size={60} color={colors.border} />
+                  <Ionicons name="search-off" size={50} color={colors.border} />
                   <Text style={styles.emptyStateText}>لا توجد كلمات</Text>
                   <Text style={styles.emptyStateSubtext}>أضف كلمات جديدة من صفحة التوليد</Text>
                 </View>
@@ -718,10 +687,10 @@ export default function HomeScreen() {
             
             {/* آخر تحديث */}
             <View style={styles.updateInfo}>
-              <Ionicons name="time" size={16} color={colors.textSecondary} />
+              <Ionicons name="time" size={14} color={colors.textSecondary} />
               <Text style={styles.updateText}>آخر تحديث: {stats.lastUpdate}</Text>
               <TouchableOpacity onPress={onRefresh} style={styles.smallRefreshButton}>
-                <Ionicons name="refresh" size={16} color={colors.secondary} />
+                <Ionicons name="refresh" size={12} color={colors.secondary} />
                 <Text style={styles.smallRefreshText}>تحديث</Text>
               </TouchableOpacity>
             </View>
@@ -741,7 +710,7 @@ export default function HomeScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>تحديث الجذر</Text>
               <TouchableOpacity onPress={() => setUpdateModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             
@@ -798,132 +767,139 @@ const styles = StyleSheet.create({
   },
   
   searchContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: colors.primary,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   searchBox: {
-    flex: 1,
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   searchIcon: {
-    marginLeft: 8,
+    marginLeft: 6,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textPrimary,
+    paddingVertical: 6,
     textAlign: 'right',
   },
   
   statsCard: {
     backgroundColor: colors.primary,
-    margin: 16,
-    borderRadius: 20,
-    padding: 20,
+    margin: 12,
+    borderRadius: 16,
+    padding: 16,
   },
   statsHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerRight: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
   },
   statsTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginRight: 12,
+    marginRight: 8,
   },
   refreshButton: {
-    padding: 8,
-    borderRadius: 10,
+    padding: 6,
+    borderRadius: 8,
     backgroundColor: 'rgba(79, 70, 229, 0.1)',
   },
   statsGrid: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    marginBottom: 20,
   },
   statItem: {
-    width: (width - 72) / 3,
+    width: (width - 56) / 3,
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
   },
   statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
   },
   
   categoriesContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 12,
+    marginBottom: 12,
   },
   categoryFilter: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
     backgroundColor: '#f1f5f9',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   activeCategoryFilter: {
     backgroundColor: colors.secondary,
   },
   categoryFilterText: {
+    fontSize: 12,
     color: colors.textSecondary,
     fontWeight: '600',
   },
   activeCategoryFilterText: {
     color: colors.primary,
-    fontWeight: 'bold',
   },
   
   rootsContainer: {
     backgroundColor: colors.primary,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 20,
-    padding: 20,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 16,
   },
   rootsHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   rootsTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginRight: 12,
+    marginRight: 8,
+  },
+  totalWords: {
+    fontSize: 12,
+    color: colors.secondary,
+    fontWeight: '600',
+    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   rootsList: {
     paddingBottom: 4,
@@ -931,8 +907,8 @@ const styles = StyleSheet.create({
   
   rootCard: {
     backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -941,7 +917,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
   },
   rootInfo: {
     flexDirection: 'row-reverse',
@@ -949,23 +925,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rootIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: 'rgba(79, 70, 229, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 10,
   },
   rootTextContainer: {
     flex: 1,
   },
   rootText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.textPrimary,
     textAlign: 'right',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   rootMeta: {
     flexDirection: 'row-reverse',
@@ -976,18 +952,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: 'rgba(79, 70, 229, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.secondary,
     fontWeight: '600',
-    marginRight: 4,
+    marginRight: 3,
   },
   rootDate: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   
@@ -996,46 +972,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editButton: {
-    padding: 8,
-    borderRadius: 8,
+    padding: 6,
+    borderRadius: 6,
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    marginRight: 8,
+    marginRight: 6,
   },
   deleteButton: {
-    padding: 8,
-    borderRadius: 8,
+    padding: 6,
+    borderRadius: 6,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    marginRight: 8,
+    marginRight: 6,
   },
   
   derivesContainer: {
-    padding: 16,
+    padding: 12,
     paddingTop: 0,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   deriveItem: {
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   deriveHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   deriveWord: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   deriveBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   deriveBadgeText: {
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   deriveFooter: {
@@ -1048,85 +1024,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deriveScheme: {
-    fontSize: 13,
+    fontSize: 11,
     color: colors.secondary,
     fontWeight: '500',
-    marginRight: 4,
+    marginRight: 3,
   },
   deriveDate: {
-    fontSize: 11,
+    fontSize: 9,
     color: colors.textSecondary,
   },
   divider: {
     height: 1,
     backgroundColor: colors.border,
-    marginTop: 12,
+    marginTop: 8,
   },
   noDerives: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 12,
   },
   noDerivesText: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginRight: 8,
+    marginRight: 4,
   },
   
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: 30,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 10,
+    fontSize: 14,
     color: colors.textSecondary,
   },
   
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    padding: 30,
   },
   emptyStateText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.textSecondary,
-    marginTop: 16,
+    marginTop: 10,
   },
   emptyStateSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 8,
+    marginTop: 4,
   },
   
   updateInfo: {
     flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    marginHorizontal: 16,
-    marginBottom: 20,
+    paddingVertical: 12,
+    marginHorizontal: 12,
+    marginBottom: 16,
   },
   updateText: {
     color: colors.textSecondary,
-    fontSize: 14,
-    marginRight: 8,
+    fontSize: 11,
+    marginRight: 4,
+    flex: 1,
   },
   smallRefreshButton: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 8,
+    padding: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
     backgroundColor: 'rgba(79, 70, 229, 0.1)',
   },
   smallRefreshText: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.secondary,
     fontWeight: '600',
-    marginRight: 4,
+    marginRight: 2,
   },
 
   modalOverlay: {
@@ -1137,48 +1114,48 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.primary,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 16,
+    padding: 20,
     width: '90%',
-    maxWidth: 400,
+    maxWidth: 360,
   },
   modalHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.textPrimary,
   },
   modalLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'right',
   },
   modalCurrentValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.secondary,
     textAlign: 'right',
-    marginBottom: 20,
-    padding: 12,
+    marginBottom: 16,
+    padding: 10,
     backgroundColor: colors.background,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   modalInput: {
     backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 20,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
     color: colors.textPrimary,
     textAlign: 'right',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   modalButtons: {
     flexDirection: 'row-reverse',
@@ -1186,26 +1163,28 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     backgroundColor: colors.background,
-    marginLeft: 12,
+    marginLeft: 8,
     alignItems: 'center',
   },
   modalCancelText: {
     color: colors.textSecondary,
     fontWeight: '600',
+    fontSize: 14,
   },
   modalConfirmButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     backgroundColor: colors.secondary,
     alignItems: 'center',
   },
   modalConfirmText: {
     color: colors.primary,
     fontWeight: 'bold',
+    fontSize: 14,
   },
   disabledButton: {
     backgroundColor: '#cbd5e1',
@@ -1220,45 +1199,40 @@ const styles = StyleSheet.create({
   },
   sweetAlertContent: {
     backgroundColor: colors.primary,
-    borderRadius: 24,
-    padding: 28,
+    borderRadius: 20,
+    padding: 24,
     width: '85%',
-    maxWidth: 340,
+    maxWidth: 300,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   sweetAlertWarning: {
-    borderTopWidth: 6,
+    borderTopWidth: 5,
     borderTopColor: colors.warning,
   },
   sweetAlertSuccess: {
-    borderTopWidth: 6,
+    borderTopWidth: 5,
     borderTopColor: colors.success,
   },
   sweetAlertError: {
-    borderTopWidth: 6,
+    borderTopWidth: 5,
     borderTopColor: colors.danger,
   },
   sweetAlertIcon: {
-    marginBottom: 20,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    marginBottom: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sweetAlertMessage: {
-    fontSize: 18,
+    fontSize: 16,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     fontWeight: '500',
-    lineHeight: 26,
+    lineHeight: 22,
   },
   sweetAlertButtons: {
     flexDirection: 'row-reverse',
@@ -1267,14 +1241,14 @@ const styles = StyleSheet.create({
   },
   sweetAlertButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 12,
+    padding: 10,
+    borderRadius: 10,
     alignItems: 'center',
-    marginHorizontal: 6,
+    marginHorizontal: 4,
   },
   sweetAlertCancelButton: {
     backgroundColor: colors.background,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
   },
   sweetAlertConfirmButton: {
@@ -1283,13 +1257,11 @@ const styles = StyleSheet.create({
   sweetAlertCancelText: {
     color: colors.textSecondary,
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: 13,
   },
   sweetAlertConfirmText: {
     color: colors.primary,
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 13,
   },
 });
-
-// ===juste lezemni nzid el sound===//

@@ -1,7 +1,7 @@
 spring:
   data:
     mongodb:
-      uri: mongodb+srv://soumayaayadi40_db_user:ZIw6wHvU0T9vEXEU@cluster0.zxgdozh.mongodb.net/MorphoSE?retryWrites=true&w=majority&ssl=true&tls=true&tlsInsecure=true&tlsAllowInvalidCertificates=true&tlsAllowInvalidHostnames=true&tlsDisabledProtocols=TLSv1.2&connectTimeoutMS=5000&socketTimeoutMS=5000&serverSelectionTimeoutMS=5000
+      uri: mongodb+srv://soumayaayadi40_db_user:ZIw6wHvU0T9vEXEU@cluster0.zxgdozh.mongodb.net/MorphoSE?retryWrites=true&w=majority&ssl=true
       database: MorphoSE
       auto-index-creation: true
 

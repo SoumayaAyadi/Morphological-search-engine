@@ -4,9 +4,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * CORS Configuration for React Native frontend
- */
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
@@ -14,11 +11,12 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(
-                    "http://localhost:3000",      // React Native web
-                    "http://localhost:19006",     // Expo
-                    "http://localhost:8081",      // Metro bundler
-                    "*"                           // Pour le développement seulement
-                )
+                    "http://localhost:3000",
+                    "http://localhost:19006",
+                    "http://localhost:8081",
+                    "http://192.168.1.87:8080",
+                    "http://192.168.1.87:19006"
+                ) // ✅ تأكد من وجود قوس الإغلاق هنا
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false)

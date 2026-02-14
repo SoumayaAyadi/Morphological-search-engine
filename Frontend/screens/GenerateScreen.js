@@ -1,5 +1,5 @@
-// GenerateScreen.js - نسخة مصححة لعرض الكلمة فقط ✅
-import React, { useState, useEffect } from 'react';
+// GenerateScreen.js - النسخة النهائية مع الصوت ✅
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -10,7 +10,8 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 import { colors } from './theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,12 +27,13 @@ export default function GenerateScreen() {
   const [showRootsModal, setShowRootsModal] = useState(false);
   const [showSchemesModal, setShowSchemesModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [generatedWords, setGeneratedWords] = useState([]);
   const [roots, setRoots] = useState([]);
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [resultScale] = useState(new Animated.Value(1));
-
+  
   // الأوزان الافتراضية
   const defaultSchemes = [
     { id: '1', name: 'فاعل' },
@@ -40,133 +42,144 @@ export default function GenerateScreen() {
     { id: '4', name: 'انفعل' },
     { id: '5', name: 'افتعل' },
     { id: '6', name: 'استفعل' },
-    { id: '7', name: 'تفعيل' },
-    { id: '8', name: 'فعال' },
-    { id: '9', name: 'فعيل' },
-    { id: '10', name: 'فعولة' },
   ];
 
-  // تحميل البيانات
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
+  // ✅ حل مشكلة الانقطاع
+  const playWord = (word) => {
     try {
-      console.log('🔵 جاري تحميل البيانات...');
-      
-      // تحميل الجذور
-      let rootsData = [];
-      try {
-        const rootsRes = await racineService.getAllRacines();
-        console.log('🔵 rootsRes:', rootsRes);
-        
-        if (Array.isArray(rootsRes)) {
-          rootsData = rootsRes;
-        } else if (rootsRes && rootsRes.data) {
-          rootsData = rootsRes.data;
-        }
-      } catch (error) {
-        console.error('🔴 Error loading roots:', error);
+      if (!word || word === '...') {
+        console.log('❌ كلمة فارغة');
+        return;
       }
       
-      setRoots(rootsData.map((r, i) => ({ 
-        id: i.toString(), 
-        root: r.racine || r 
-      })));
+      console.log('🔊 تشغيل:', word);
+      
+      // للويب فقط
+      if (Platform.OS === 'web') {
+        // التأكد من وجود SpeechSynthesis
+        if (!window.speechSynthesis) {
+          Alert.alert('تنبيه', 'متصفحك لا يدعم خاصية النطق');
+          return;
+        }
 
-      // تحميل الأوزان
-      let schemesData = [];
-      try {
-        const schemesRes = await schemeService.getAllSchemes();
-        console.log('🔵 schemesRes:', schemesRes);
+        // ⚠️ حل المشكلة: إيقاف الكلام السابق وإعادة تشغيل المتصفح للصوت
+        window.speechSynthesis.cancel();
         
-        if (Array.isArray(schemesRes)) {
-          schemesData = schemesRes;
-        } else if (schemesRes && schemesRes.data) {
-          schemesData = schemesRes.data;
-        }
-      } catch (error) {
-        console.error('🔴 Error loading schemes:', error);
+        // انتظر قليلاً قبل تشغيل الصوت الجديد
+        setTimeout(() => {
+          try {
+            // إنشاء كلام جديد
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'ar-SA';
+            utterance.rate = 0.8; // سرعة أبطأ
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            // البحث عن صوت عربي
+            const voices = window.speechSynthesis.getVoices();
+            const arabicVoice = voices.find(voice => 
+              voice.lang.includes('ar') || 
+              voice.name.includes('Arabic') ||
+              voice.lang.includes('AR')
+            );
+            
+            if (arabicVoice) {
+              utterance.voice = arabicVoice;
+              console.log('🎤 استعمال الصوت العربي:', arabicVoice.name);
+            }
+            
+            // متابعة الحالة
+            utterance.onstart = () => {
+              console.log('▶️ بدأ التشغيل');
+              setIsPlaying(true);
+            };
+            
+            utterance.onend = () => {
+              console.log('⏹️ انتهى التشغيل');
+              setIsPlaying(false);
+            };
+            
+            utterance.onerror = (event) => {
+              console.log('⚠️ خطأ بسيط:', event.error);
+              // تجاهل الخطأ لأن الصوت قد اشتغل
+              setIsPlaying(false);
+            };
+            
+            // تشغيل الكلام
+            window.speechSynthesis.speak(utterance);
+            
+            // ⚠️ حل مشكلة الانقطاع في المتصفحات
+            const interval = setInterval(() => {
+              if (!window.speechSynthesis.speaking) {
+                clearInterval(interval);
+              } else {
+                window.speechSynthesis.pause();
+                window.speechSynthesis.resume();
+              }
+            }, 5000);
+            
+          } catch (innerError) {
+            console.error('🔴 خطأ في التشغيل:', innerError);
+            setIsPlaying(false);
+          }
+        }, 100);
       }
-      
-      console.log('🔵 schemesData length:', schemesData.length);
-      
-      // تحويل الأوزان للشكل المطلوب
-      const formattedSchemes = schemesData.map((s, index) => {
-        let name = '';
-        
-        if (typeof s === 'string') {
-          name = s;
-        } else if (s && typeof s === 'object') {
-          name = s.nom || s.name || s.pattern || s.scheme || '';
-        }
-        
-        return {
-          id: index.toString(),
-          name: name,
-        };
-      }).filter(s => s.name);
-      
-      console.log('🔵 formattedSchemes:', formattedSchemes);
-      
-      // إذا كانت الأوزان فاضية، استعمل الافتراضية
-      if (formattedSchemes.length === 0) {
-        console.log('⚠️ استعمال الأوزان الافتراضية');
-        setSchemes(defaultSchemes);
-      } else {
-        setSchemes(formattedSchemes);
-      }
-      
     } catch (error) {
-      console.error('🔴 Error loading data:', error);
-      // في حالة الخطأ، استعمل الأوزان الافتراضية
-      setSchemes(defaultSchemes);
-    } finally {
-      setLoading(false);
+      console.error('🔴 خطأ عام:', error);
+      setIsPlaying(false);
     }
   };
 
-  // توليد كلمة
+  // ✅ إيقاف الصوت
+  const stopWord = () => {
+    try {
+      if (Platform.OS === 'web' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        console.log('⏹️ تم إيقاف الصوت');
+      }
+      setIsPlaying(false);
+    } catch (error) {
+      console.error('🔴 خطأ في الإيقاف:', error);
+    }
+  };
+
+  // ✅ تجربة الصوت بكلمات مختلفة
+  const testVoice = () => {
+    const testWords = ['مرحبا', 'السلام عليكم', 'كيف حالك', 'بخير الحمد لله'];
+    
+    // اختيار كلمة عشوائية
+    const randomWord = testWords[Math.floor(Math.random() * testWords.length)];
+    
+    Alert.alert(
+      'تجربة الصوت',
+      `سيتم تشغيل: "${randomWord}"`,
+      [
+        { text: 'تشغيل', onPress: () => playWord(randomWord) },
+        { text: 'إلغاء' }
+      ]
+    );
+  };
+
   const handleGenerate = async () => {
     if (!selectedRoot || !selectedScheme) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('تنبيه', 'اختر الجذر والنمط أولاً');
       return;
     }
 
     setIsGenerating(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      console.log('🔵 Generating:', selectedRoot.root, selectedScheme.name);
-      
       const response = await morphologyService.generateWord(selectedRoot.root, selectedScheme.name);
-      console.log('🔵 Generate response:', response);
+      console.log('📥 Response:', response);
       
-      // ✅ استخراج الكلمة من البيانات - هذا هو المهم!
-      let newWord = '...';
+      // استخراج الكلمة
+      let newWord = response?.data?.motGenere || 
+                    response?.motGenere || 
+                    response?.data?.word || 
+                    response?.word || 
+                    '...';
       
-      if (response?.data?.motGenere) {
-        // الشكل الحالي: { data: { motGenere: "استجما" } }
-        newWord = response.data.motGenere;
-      } else if (response?.motGenere) {
-        // شكل آخر: { motGenere: "استجما" }
-        newWord = response.motGenere;
-      } else if (response?.data?.word) {
-        newWord = response.data.word;
-      } else if (response?.word) {
-        newWord = response.word;
-      } else if (typeof response === 'string') {
-        newWord = response;
-      } else {
-        // إذا ما لقيتش الكلمة، اعرض JSON (للتشخيص)
-        console.log('⚠️ Unknown response format:', response);
-        newWord = JSON.stringify(response);
-      }
-      
-      console.log('✅ Extracted word:', newWord);
+      console.log('✅ كلمة جديدة:', newWord);
       setResult(newWord);
       
       // تأثير
@@ -183,23 +196,89 @@ export default function GenerateScreen() {
         scheme: selectedScheme.name
       }, ...prev].slice(0, 5));
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // سؤال المستخدم إذا كان يريد سماع الكلمة
+      Alert.alert(
+        'تم التوليد',
+        `الكلمة: ${newWord}\nهل تريد سماعها؟`,
+        [
+          { text: 'نعم', onPress: () => playWord(newWord) },
+          { text: 'لا' }
+        ]
+      );
+
     } catch (error) {
       console.error('🔴 Generate error:', error);
-      Alert.alert('خطأ', 'فشل التوليد: ' + (error.response?.data?.message || error.message));
+      Alert.alert('خطأ', 'فشل التوليد');
     } finally {
       setIsGenerating(false);
     }
   };
 
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // تحميل الجذور
+      const rootsRes = await racineService.getAllRacines();
+      const rootsData = Array.isArray(rootsRes) ? rootsRes : rootsRes?.data || [];
+      setRoots(rootsData.map((r, i) => ({ id: i.toString(), root: r.racine || r })));
+
+      // تحميل الأوزان
+      const schemesRes = await schemeService.getAllSchemes();
+      const schemesData = Array.isArray(schemesRes) ? schemesRes : schemesRes?.data || [];
+      
+      if (schemesData.length > 0) {
+        const formattedSchemes = schemesData.map((s, i) => ({
+          id: i.toString(),
+          name: s.nom || s.name || s.pattern || s.scheme || ''
+        })).filter(s => s.name);
+        setSchemes(formattedSchemes);
+      } else {
+        setSchemes(defaultSchemes);
+      }
+    } catch (error) {
+      console.error('🔴 Error:', error);
+      setSchemes(defaultSchemes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    
+    // تحميل الأصوات عند بدء التشغيل
+    if (Platform.OS === 'web' && window.speechSynthesis) {
+      // جلب الأصوات
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        console.log('🎤 الأصوات المتوفرة:', voices.map(v => `${v.name} (${v.lang})`));
+        
+        // البحث عن صوت عربي
+        const arabicVoice = voices.find(v => 
+          v.lang.includes('ar') || v.name.includes('Arabic')
+        );
+        
+        if (arabicVoice) {
+          console.log('✅ وجدنا صوت عربي:', arabicVoice.name);
+        } else {
+          console.log('⚠️ لا يوجد صوت عربي');
+        }
+      };
+      
+      if (window.speechSynthesis.getVoices().length > 0) {
+        loadVoices();
+      } else {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    }
+  }, []);
+
   const renderRootItem = ({ item }) => (
     <TouchableOpacity
       style={[styles.modalItem, selectedRoot?.id === item.id && styles.selectedModalItem]}
       onPress={() => {
-        console.log('🔵 Root selected:', item);
         setSelectedRoot(item);
         setShowRootsModal(false);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }}
     >
       <Text style={styles.itemText}>{item.root}</Text>
@@ -209,53 +288,54 @@ export default function GenerateScreen() {
     </TouchableOpacity>
   );
 
-  const renderSchemeItem = ({ item }) => {
-    return (
-      <TouchableOpacity
-        style={[styles.modalItem, selectedScheme?.id === item.id && styles.selectedModalItem]}
-        onPress={() => {
-          console.log('🔵 Scheme selected:', item);
-          setSelectedScheme(item);
-          setShowSchemesModal(false);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }}
-      >
-        <Text style={styles.itemText}>{item.name}</Text>
-        {selectedScheme?.id === item.id && (
-          <Ionicons name="checkmark-circle" size={24} color={colors.secondary} />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const clearSelection = () => {
-    setSelectedRoot(null);
-    setSelectedScheme(null);
-    setResult('...');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  // دالة لعرض الأوزان المتوفرة
-  const showAvailableSchemes = () => {
-    const schemesList = schemes.map(s => s.name).join('، ');
-    Alert.alert(
-      'الأوزان المتوفرة',
-      `عدد الأوزان: ${schemes.length}\n\n${schemesList}`
-    );
-  };
+  const renderSchemeItem = ({ item }) => (
+    <TouchableOpacity
+      style={[styles.modalItem, selectedScheme?.id === item.id && styles.selectedModalItem]}
+      onPress={() => {
+        setSelectedScheme(item);
+        setShowSchemesModal(false);
+      }}
+    >
+      <Text style={styles.itemText}>{item.name}</Text>
+      {selectedScheme?.id === item.id && (
+        <Ionicons name="checkmark-circle" size={24} color={colors.secondary} />
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* البطاقة الرئيسية */}
       <View style={styles.mainCard}>
-        <Text style={styles.title}>مولد الكلمات</Text>
-        <Text style={styles.subtitle}>اختر جذراً ونمطاً لتوليد كلمة جديدة</Text>
+        <Text style={styles.title}>🔊 مولد الكلمات بالصوت</Text>
+        <Text style={styles.subtitle}>اختر جذراً ونمطاً لتوليد كلمة</Text>
 
-    
+        {/* أزرار الصوت */}
+        {Platform.OS === 'web' && (
+          <View style={styles.buttonsRow}>
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={testVoice}
+            >
+              <Ionicons name="volume-high" size={20} color="#fff" />
+              <Text style={styles.buttonText}>جرب الصوت</Text>
+            </TouchableOpacity>
+            
+            {isPlaying && (
+              <TouchableOpacity
+                style={styles.stopButton}
+                onPress={stopWord}
+              >
+                <Ionicons name="stop-circle" size={20} color="#fff" />
+                <Text style={styles.buttonText}>إيقاف</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* اختيار الجذر */}
         <View style={styles.section}>
-          <Text style={styles.label}>الجذر</Text>
+          <Text style={styles.label}>🌱 الجذر</Text>
           <TouchableOpacity
             style={styles.picker}
             onPress={() => setShowRootsModal(true)}
@@ -269,7 +349,7 @@ export default function GenerateScreen() {
 
         {/* اختيار النمط */}
         <View style={styles.section}>
-          <Text style={styles.label}>النمط</Text>
+          <Text style={styles.label}>📐 النمط</Text>
           <TouchableOpacity
             style={styles.picker}
             onPress={() => setShowSchemesModal(true)}
@@ -290,35 +370,55 @@ export default function GenerateScreen() {
           {isGenerating ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.generateButtonText}>توليد</Text>
+            <Text style={styles.generateButtonText}>توليد الكلمة</Text>
           )}
         </TouchableOpacity>
-
-        {/* إعادة تعيين */}
-        {(selectedRoot || selectedScheme) && (
-          <TouchableOpacity onPress={clearSelection} style={styles.resetButton}>
-            <Text style={styles.resetText}>إعادة تعيين</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* النتيجة */}
-      <View style={styles.resultCard}>
-        <Text style={styles.resultLabel}>النتيجة:</Text>
-        <Animated.Text style={[styles.resultText, { transform: [{ scale: resultScale }] }]}>
-          {result}
-        </Animated.Text>
-      </View>
+      {/* النتيجة مع الصوت */}
+      {result !== '...' && (
+        <View style={styles.resultCard}>
+          <View style={styles.resultHeader}>
+            <Text style={styles.resultLabel}>🎯 النتيجة:</Text>
+            
+            {/* زر الصوت */}
+            {Platform.OS === 'web' && (
+              <TouchableOpacity 
+                onPress={() => playWord(result)} 
+                style={styles.soundButton}
+                disabled={isPlaying}
+              >
+                <Ionicons 
+                  name={isPlaying ? "sync" : "volume-high"} 
+                  size={28} 
+                  color={colors.secondary} 
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <Animated.Text style={[styles.resultText, { transform: [{ scale: resultScale }] }]}>
+            {result}
+          </Animated.Text>
+        </View>
+      )}
 
       {/* السجل */}
       {generatedWords.length > 0 && (
         <View style={styles.historyCard}>
-          <Text style={styles.historyTitle}>آخر الكلمات</Text>
+          <Text style={styles.historyTitle}>📜 آخر الكلمات</Text>
           {generatedWords.map(item => (
-            <View key={item.id} style={styles.historyItem}>
-              <Text style={styles.historyWord}>{item.word}</Text>
+            <TouchableOpacity 
+              key={item.id} 
+              style={styles.historyItem}
+              onPress={() => playWord(item.word)}
+            >
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 10, flex: 1 }}>
+                <Text style={styles.historyWord}>{item.word}</Text>
+                <Ionicons name="volume-low" size={18} color={colors.secondary} />
+              </View>
               <Text style={styles.historyDetails}>{item.root} + {item.scheme}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
@@ -403,17 +503,32 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginBottom: 20,
   },
-  listButton: {
-    backgroundColor: '#3b82f6',
+  buttonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  testButton: {
+    backgroundColor: '#10b981',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 20,
+    flex: 1,
     flexDirection: 'row-reverse',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
-  listButtonText: {
+  stopButton: {
+    backgroundColor: '#ef4444',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    flexDirection: 'row-reverse',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
@@ -463,35 +578,38 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  resetButton: {
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  resetText: {
-    color: '#64748b',
-    fontSize: 14,
-  },
   resultCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
   },
+  resultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
   resultLabel: {
     fontSize: 16,
     color: '#64748b',
-    marginBottom: 12,
+  },
+  soundButton: {
+    padding: 8,
+    borderRadius: 30,
+    backgroundColor: '#f1f5f9',
   },
   resultText: {
     fontSize: 48,
     fontWeight: 'bold',
     color: '#4f46e5',
+    textAlign: 'center',
   },
   historyCard: {
     backgroundColor: '#fff',
@@ -570,5 +688,3 @@ const styles = StyleSheet.create({
     padding: 40,
   },
 });
-///la genration te5dem jawha behya 
-//juste lezem nziid el sound//
