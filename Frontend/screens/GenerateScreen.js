@@ -1,3 +1,4 @@
+// GenerateScreen.js - نسخة مصححة لعرض الكلمة فقط ✅
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -127,55 +128,6 @@ export default function GenerateScreen() {
     }
   };
 
-  // 🧪 دالة اختبار التوليد
-  const testGenerate = async () => {
-    try {
-      console.log('🧪 Testing generate with: كتب + فاعل');
-      
-      setLoading(true);
-      const testRes = await morphologyService.generateWord('كتب', 'فاعل');
-      console.log('🧪 Test result:', testRes);
-      
-      let resultText = '';
-      if (typeof testRes === 'string') {
-        resultText = testRes;
-      } else if (testRes?.word) {
-        resultText = testRes.word;
-      } else {
-        resultText = JSON.stringify(testRes, null, 2);
-      }
-      
-      Alert.alert(
-        '✅ نتيجة الاختبار',
-        `الكلمة المولدة: ${resultText}`,
-        [
-          { text: 'حسناً', style: 'default' }
-        ]
-      );
-    } catch (error) {
-      console.error('🧪 Test error:', error);
-      
-      Alert.alert(
-        '❌ خطأ في الاختبار',
-        `الخطأ: ${error.message}\n\n${error.response?.data ? JSON.stringify(error.response.data) : ''}`,
-        [
-          { text: 'حسناً', style: 'cancel' }
-        ]
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 📋 دالة عرض الأوزان المتوفرة
-  const showAvailableSchemes = () => {
-    const schemesList = schemes.map(s => s.name).join('، ');
-    Alert.alert(
-      'الأوزان المتوفرة',
-      `عدد الأوزان: ${schemes.length}\n\n${schemesList}`
-    );
-  };
-
   // توليد كلمة
   const handleGenerate = async () => {
     if (!selectedRoot || !selectedScheme) {
@@ -193,27 +145,37 @@ export default function GenerateScreen() {
       const response = await morphologyService.generateWord(selectedRoot.root, selectedScheme.name);
       console.log('🔵 Generate response:', response);
       
+      // ✅ استخراج الكلمة من البيانات - هذا هو المهم!
       let newWord = '...';
       
-      if (typeof response === 'string') {
-        newWord = response;
-      } else if (response?.word) {
-        newWord = response.word;
+      if (response?.data?.motGenere) {
+        // الشكل الحالي: { data: { motGenere: "استجما" } }
+        newWord = response.data.motGenere;
+      } else if (response?.motGenere) {
+        // شكل آخر: { motGenere: "استجما" }
+        newWord = response.motGenere;
       } else if (response?.data?.word) {
         newWord = response.data.word;
-      } else if (response?.result) {
-        newWord = response.result;
+      } else if (response?.word) {
+        newWord = response.word;
+      } else if (typeof response === 'string') {
+        newWord = response;
       } else {
+        // إذا ما لقيتش الكلمة، اعرض JSON (للتشخيص)
+        console.log('⚠️ Unknown response format:', response);
         newWord = JSON.stringify(response);
       }
       
+      console.log('✅ Extracted word:', newWord);
       setResult(newWord);
       
+      // تأثير
       Animated.sequence([
         Animated.timing(resultScale, { toValue: 1.3, duration: 200, useNativeDriver: true }),
         Animated.spring(resultScale, { toValue: 1, friction: 3, useNativeDriver: true })
       ]).start();
 
+      // إضافة للسجل
       setGeneratedWords(prev => [{
         id: Date.now().toString(),
         word: newWord,
@@ -273,6 +235,15 @@ export default function GenerateScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // دالة لعرض الأوزان المتوفرة
+  const showAvailableSchemes = () => {
+    const schemesList = schemes.map(s => s.name).join('، ');
+    Alert.alert(
+      'الأوزان المتوفرة',
+      `عدد الأوزان: ${schemes.length}\n\n${schemesList}`
+    );
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* البطاقة الرئيسية */}
@@ -280,7 +251,7 @@ export default function GenerateScreen() {
         <Text style={styles.title}>مولد الكلمات</Text>
         <Text style={styles.subtitle}>اختر جذراً ونمطاً لتوليد كلمة جديدة</Text>
 
-     
+    
 
         {/* اختيار الجذر */}
         <View style={styles.section}>
@@ -431,21 +402,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'right',
     marginBottom: 20,
-  },
-  testButton: {
-    backgroundColor: '#f59e0b',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  testButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
   listButton: {
     backgroundColor: '#3b82f6',
@@ -614,5 +570,5 @@ const styles = StyleSheet.create({
     padding: 40,
   },
 });
-//la genration des mots//
-//le sound//
+///la genration te5dem jawha behya 
+//juste lezem nziid el sound//

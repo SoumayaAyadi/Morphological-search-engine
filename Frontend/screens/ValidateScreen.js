@@ -39,21 +39,49 @@ export default function ValidateScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // ✅ هنا response هو data مباشرة
+      // ✅ response هو البيانات مباشرة من api.js
       const response = await morphologyService.validateWord(root.trim(), word.trim());
+      console.log('✅ Validate response:', response);
       
-      // ✅ response هو نفس result
-      setIsValid(response.valid);
-      setScheme(response.scheme || '');
+      // ✅ استخراج قيمة الصحة
+      let validValue = false;
+      let schemeValue = '';
       
-      Haptics.notificationAsync(
-        response.valid ? 
-        Haptics.NotificationFeedbackType.Success : 
-        Haptics.NotificationFeedbackType.Warning
-      );
+      if (response && response.success) {
+        // إذا كان success = true
+        if (response.data) {
+          validValue = response.data.valid === true;
+          schemeValue = response.data.scheme || '';
+        }
+      } else if (response && response.data) {
+        // إذا كان فيه data
+        validValue = response.data.valid === true;
+        schemeValue = response.data.scheme || '';
+      } else if (response && response.valid !== undefined) {
+        // إذا كان فيه valid مباشرة
+        validValue = response.valid === true;
+        schemeValue = response.scheme || '';
+      }
+      
+      console.log('✅ Valid value:', validValue);
+      console.log('✅ Scheme value:', schemeValue);
+      
+      // تحديث الحالات
+      setIsValid(validValue);
+      setScheme(schemeValue);
+      
+      // الاهتزاز حسب النتيجة
+      if (validValue) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+      
     } catch (err) {
       console.error('Validation error:', err);
-      setError('فشل الاتصال بالخادم');
+      setError('فشل الاتصال بالخادم: ' + (err.response?.data?.message || err.message));
+      setIsValid(null);
+      setScheme('');
     } finally {
       setLoading(false);
     }
@@ -67,20 +95,45 @@ export default function ValidateScreen() {
     }
 
     setLoading(true);
+    setError('');
+    
     try {
-      // ✅ هنا response هو data مباشرة
+      // ✅ response هو البيانات مباشرة من api.js
       const response = await morphologyService.analyzeWord(word.trim());
+      console.log('✅ Analyze response:', response);
       
-      if (response.found) {
-        setRoot(response.racine || '');
-        setScheme(response.scheme || '');
+      let found = false;
+      let rootValue = '';
+      let schemeValue = '';
+      
+      if (response && response.data) {
+        if (response.data.found) {
+          found = true;
+          rootValue = response.data.racine || '';
+          schemeValue = response.data.scheme || '';
+        }
+      } else if (response && response.found) {
+        found = true;
+        rootValue = response.racine || '';
+        schemeValue = response.scheme || '';
+      }
+      
+      if (found) {
+        setRoot(rootValue);
+        setScheme(schemeValue);
         setIsValid(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
         setError('لم يتم العثور على تحليل');
+        setIsValid(false);
+        setScheme('');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
+      
     } catch (err) {
       console.error('Analysis error:', err);
-      setError('فشل الاتصال بالخادم');
+      setError('فشل الاتصال بالخادم: ' + (err.response?.data?.message || err.message));
+      setIsValid(null);
     } finally {
       setLoading(false);
     }
@@ -92,6 +145,7 @@ export default function ValidateScreen() {
     setIsValid(null);
     setScheme('');
     setError('');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   return (
@@ -176,7 +230,7 @@ export default function ValidateScreen() {
         {isValid !== null && (
           <View style={[
             styles.resultCard,
-            { backgroundColor: isValid ? '#f0fdf4' : '#fef2f2' }
+            isValid ? styles.validCard : styles.invalidCard
           ]}>
             <View style={styles.resultHeader}>
               <Ionicons 
@@ -324,6 +378,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  validCard: {
+    backgroundColor: '#f0fdf4',
+    borderColor: colors.success,
+  },
+  invalidCard: {
+    backgroundColor: '#fef2f2',
+    borderColor: colors.danger,
+  },
   resultHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -359,5 +421,3 @@ const styles = StyleSheet.create({
     color: colors.secondary,
   },
 });
-// hedhi metestitch fiha des vrai exemple
-//lezem na3mlouha berrasmi
