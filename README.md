@@ -4,7 +4,7 @@ Application complète pour l'analyse morphologique de la langue arabe.
 
 ## Structure du Projet
 
-- `backend/morphologie-engine` - Moteur morphologique (bibliothèque)
+- `backend/morphologie-engine` - Moteur morphologique 
 - `backend/morphologie-api` - API REST Spring Boot
 - `cli` - Interface en ligne de commande
 - `frontend` - Application mobile React Native
