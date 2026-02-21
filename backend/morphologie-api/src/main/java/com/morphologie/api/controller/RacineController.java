@@ -4,7 +4,6 @@ import com.morphologie.api.dto.request.*;
 import com.morphologie.api.dto.response.*;
 import com.morphologie.api.model.Racine;
 import com.morphologie.api.service.RacineService;
-//import com.morphologie.api.exception.RacineNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

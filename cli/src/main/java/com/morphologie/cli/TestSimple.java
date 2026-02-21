@@ -2,10 +2,7 @@
 package com.morphologie.cli;
 
 import com.morphologie.engine.AVLTree;
-//import com.morphologie.engine.Morphologie;
 import com.morphologie.engine.Node;
-//import com.morphologie.engine.HashTable;
-//import com.morphologie.engine.Scheme;
 
 public class TestSimple {
     public static void main(String[] args) {
