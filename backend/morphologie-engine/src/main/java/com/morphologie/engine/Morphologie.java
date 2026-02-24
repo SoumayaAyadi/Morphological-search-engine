@@ -165,12 +165,23 @@ public class Morphologie {
                     System.out.println("   Mot    : " + RTLFormatter.rtl(mot));
                     System.out.println("   Racine : " + RTLFormatter.rtl(node.racine));
                     System.out.println("   Schème : " + RTLFormatter.rtl(s.nom));
+                    
+                    // Vérifier si le mot existe déjà dans la liste des dérivés
+                    if (!node.derives.contains(mot)) {
+                        // ajouter le mot analysé à la liste des dérivés avec son schème
+                        node.ajouterDerive(mot, s.nom);
+                        System.out.println("✅ Nouveau mot ajouté aux dérivés de la racine " + RTLFormatter.rtl(node.racine));
+                    } else {
+                        System.out.println("ℹ️ Le mot existe déjà dans les dérivés de cette racine");
+                    }
+                    
                     return;
                 }
             }
         }
         System.out.println("❌ Mot inconnu : " + RTLFormatter.rtl(mot));
     }
+
 
     // ================= Ajout d'un nouveau schème (DYNAMIQUE) =================
     // Ajoute un nouveau schème à partir d'un pattern (ex: "فاعل")
@@ -217,14 +228,15 @@ public class Morphologie {
             return;
         }
 
-        System.out.println("=== Dérivés de la racine " + RTLFormatter.rtl(racine) + " ===");
-        if (node.derives.isEmpty()) {
-            System.out.println("❌ Aucun mot dérivé pour cette racine");
-        } else {
-            for (String mot : node.derives) {
-                System.out.println("- " + RTLFormatter.rtl(mot));
+            System.out.println("=== Dérivés de la racine " + RTLFormatter.rtl(racine) + " ===");
+            if (node.derives.isEmpty()) {
+                System.out.println("❌ Aucun mot dérivé pour cette racine");
+            } else {
+                // Affiche uniquement les mots dérivés (sans afficher le schème)
+                for (String mot : node.derives) {
+                    System.out.println("- " + RTLFormatter.rtl(mot));
+                }
             }
-        }
     }
 
     // ================= Getters pour menus =================

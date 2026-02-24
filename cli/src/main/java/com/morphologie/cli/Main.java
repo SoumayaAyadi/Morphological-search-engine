@@ -66,7 +66,18 @@ public class Main {
                         System.out.println((i + 1) + ") " + RTLFormatter.rtl(racines.get(i)));
                     }
                     System.out.print("Choix racine (numéro) : ");
-                    int choixRacine = Integer.parseInt(sc.nextLine());
+                    String inputR = sc.nextLine();
+                    int choixRacine;
+                    try {
+                        choixRacine = Integer.parseInt(inputR);
+                    } catch (NumberFormatException nfe) {
+                        System.out.println("❌ Veuillez saisir un numéro valide pour la racine.");
+                        break; // retourne au menu principal
+                    }
+                    if (choixRacine < 1 || choixRacine > racines.size()) {
+                        System.out.println("❌ Numéro de racine hors plage.");
+                        break;
+                    }
                     String r = racines.get(choixRacine - 1);
 
                     // === Étape 2 : choisir un schème dans la liste ===
@@ -76,7 +87,18 @@ public class Main {
                         System.out.println((i + 1) + ") " + RTLFormatter.rtl(schemes.get(i)));
                     }
                     System.out.print("Choix schème (numéro) : ");
-                    int choixScheme = Integer.parseInt(sc.nextLine());
+                    String inputS = sc.nextLine();
+                    int choixScheme;
+                    try {
+                        choixScheme = Integer.parseInt(inputS);
+                    } catch (NumberFormatException nfe) {
+                        System.out.println("❌ Veuillez saisir un numéro valide pour le schème.");
+                        break;
+                    }
+                    if (choixScheme < 1 || choixScheme > schemes.size()) {
+                        System.out.println("❌ Numéro de schème hors plage.");
+                        break;
+                    }
                     String s = schemes.get(choixScheme - 1);
 
                     // === Étape 3 : générer le mot ===

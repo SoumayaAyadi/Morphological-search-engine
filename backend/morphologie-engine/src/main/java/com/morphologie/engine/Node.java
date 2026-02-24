@@ -46,8 +46,7 @@ public class Node {
             // On parcourt tous les dérivés avec leurs schèmes
             for (int i = 0; i < derives.size(); i++) {
                 String mot = derives.get(i);
-                String scheme = deriveSchemes.get(i);
-                System.out.println("    - " + RTLFormatter.rtl(mot) + " | Schème : " + RTLFormatter.rtl(scheme));
+                System.out.println("    - " + RTLFormatter.rtl(mot));
             }
         } else {
             System.out.println("  Aucun dérivé");
